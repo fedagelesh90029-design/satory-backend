@@ -1,0 +1,235 @@
+const router = require('express').Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const db = require('../db');
+const { parseProductsFile, parseBonusesFile, calcLoyaltyStatus } = require('../services/iikoFileParser');
+
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'iiko');
+const LAST_SYNC_FILE = path.join(UPLOAD_DIR, 'last_sync.json');
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'satory_admin_2026';
+
+// Убедимся что папка существует
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+// ─── Multer ──────────────────────────────────────────────────────────────────
+const ALLOWED_EXT = ['.xlsx', '.xls', '.csv'];
+
+const storage = multer.diskStorage({
+  destination: UPLOAD_DIR,
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const type = req.params.type || 'products';
+    cb(null, `${type}_latest${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 МБ
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_EXT.includes(ext)) return cb(null, true);
+    cb(Object.assign(new Error('Допустимые форматы: .xlsx, .xls, .csv'), { status: 400 }));
+  },
+});
+
+// ─── Middleware ───────────────────────────────────────────────────────────────
+function adminOnly(req, res, next) {
+  if (req.headers['x-admin-secret'] !== ADMIN_SECRET) {
+    return res.status(403).json({ error: 'Доступ запрещён' });
+  }
+  next();
+}
+
+// ─── Sync helpers ─────────────────────────────────────────────────────────────
+async function runProductSync(filePath) {
+  const rows = await parseProductsFile(filePath);
+  const now = new Date().toISOString();
+  let added = 0, updated = 0, skipped = 0;
+
+  const incomingIds = rows.map(r => r.iiko_id);
+
+  // Батчевый upsert
+  for (const row of rows) {
+    const existing = await db.products.findOne({ iiko_id: row.iiko_id });
+    if (existing) {
+      await db.products.update({ iiko_id: row.iiko_id }, {
+        $set: {
+          name: row.name, category: row.category, price: row.price,
+          stock: row.stock, description: row.description, unit: row.unit,
+          active: true, updated_at: now,
+        },
+      });
+      updated++;
+    } else {
+      await db.products.insert({ ...row, active: true, rating: 0, reviews_count: 0, badge: null, year: null, updated_at: now });
+      added++;
+    }
+  }
+
+  // Мягкое удаление отсутствующих
+  const allProducts = await db.products.find({ active: true });
+  for (const p of allProducts) {
+    if (p.iiko_id && !incomingIds.includes(p.iiko_id)) {
+      await db.products.update({ _id: p._id }, { $set: { active: false, updated_at: now } });
+    }
+  }
+
+  const delta = { added, updated, skipped, total: rows.length, synced_at: now };
+  // Сохраняем метку синхронизации
+  const syncData = fs.existsSync(LAST_SYNC_FILE) ? JSON.parse(fs.readFileSync(LAST_SYNC_FILE)) : {};
+  fs.writeFileSync(LAST_SYNC_FILE, JSON.stringify({ ...syncData, products: now }));
+  await db.sync_log.insert({ type: 'products', status: 'success', rows_processed: rows.length, created_at: now });
+  return delta;
+}
+
+async function runBonusSync(filePath) {
+  const rows = await parseBonusesFile(filePath);
+  const now = new Date().toISOString();
+  let matched = 0, unmatched = 0;
+
+  // Группируем по телефону — берём последнюю по дате запись
+  const byPhone = {};
+  for (const row of rows) {
+    if (!byPhone[row.phone] || new Date(row.date) > new Date(byPhone[row.phone].date)) {
+      byPhone[row.phone] = row;
+    }
+  }
+
+  // Сохраняем все транзакции
+  for (const row of rows) {
+    const user = await db.users.findOne({ phone: row.phone });
+    await db.bonus_transactions.insert({
+      user_id: user ? user._id : null,
+      phone: row.phone,
+      guest_name: row.guest_name,
+      date: row.date,
+      operation_type: row.operation_type,
+      accrued: row.accrued,
+      spent: row.spent,
+      balance: row.balance,
+      description: `${row.operation_type}: +${row.accrued} / -${row.spent}`,
+      created_at: now,
+    });
+  }
+
+  // Обновляем балансы пользователей
+  for (const [phone, row] of Object.entries(byPhone)) {
+    const user = await db.users.findOne({ phone });
+    if (user) {
+      await db.users.update({ phone }, {
+        $set: {
+          bonus_balance: row.balance,
+          loyalty_status: calcLoyaltyStatus(row.balance),
+          bonus_updated_at: now,
+        },
+      });
+      matched++;
+    } else {
+      unmatched++;
+    }
+  }
+
+  const delta = { matched, unmatched, total: rows.length, synced_at: now };
+  const syncData = fs.existsSync(LAST_SYNC_FILE) ? JSON.parse(fs.readFileSync(LAST_SYNC_FILE)) : {};
+  fs.writeFileSync(LAST_SYNC_FILE, JSON.stringify({ ...syncData, bonuses: now }));
+  await db.sync_log.insert({ type: 'bonuses', status: 'success', rows_processed: rows.length, created_at: now });
+  return delta;
+}
+
+// Экспортируем для fileWatcher
+module.exports.runProductSync = runProductSync;
+module.exports.runBonusSync = runBonusSync;
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
+// POST /api/iiko/upload/products
+router.post('/upload/products', adminOnly, (req, res) => {
+  upload.single('file')(req, res, async (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Файл превышает 10 МБ' });
+      return res.status(err.status || 400).json({ error: err.message });
+    }
+    if (!req.file) return res.status(400).json({ error: 'Файл не передан (поле: file)' });
+    try {
+      const delta = await runProductSync(req.file.path);
+      res.json({ success: true, ...delta });
+    } catch (e) {
+      res.status(422).json({ error: e.message });
+    }
+  });
+});
+
+// POST /api/iiko/upload/bonuses
+router.post('/upload/bonuses', adminOnly, (req, res) => {
+  upload.single('file')(req, res, async (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Файл превышает 10 МБ' });
+      return res.status(err.status || 400).json({ error: err.message });
+    }
+    if (!req.file) return res.status(400).json({ error: 'Файл не передан (поле: file)' });
+    try {
+      const delta = await runBonusSync(req.file.path);
+      res.json({ success: true, ...delta });
+    } catch (e) {
+      res.status(422).json({ error: e.message });
+    }
+  });
+});
+
+// POST /api/iiko/sync/products
+router.post('/sync/products', adminOnly, async (req, res) => {
+  const files = fs.readdirSync(UPLOAD_DIR).filter(f => f.startsWith('products_latest'));
+  if (!files.length) return res.status(404).json({ error: 'Файл выгрузки не найден. Загрузите файл через POST /api/iiko/upload/products' });
+  try {
+    const delta = await runProductSync(path.join(UPLOAD_DIR, files[0]));
+    res.json(delta);
+  } catch (e) {
+    res.status(422).json({ error: e.message });
+  }
+});
+
+// POST /api/iiko/sync/bonuses
+router.post('/sync/bonuses', adminOnly, async (req, res) => {
+  const files = fs.readdirSync(UPLOAD_DIR).filter(f => f.startsWith('bonuses_latest'));
+  if (!files.length) return res.status(404).json({ error: 'Файл выгрузки не найден. Загрузите файл через POST /api/iiko/upload/bonuses' });
+  try {
+    const delta = await runBonusSync(path.join(UPLOAD_DIR, files[0]));
+    res.json(delta);
+  } catch (e) {
+    res.status(422).json({ error: e.message });
+  }
+});
+
+// POST /api/iiko/sync — обратная совместимость
+router.post('/sync', async (req, res) => {
+  const files = fs.readdirSync(UPLOAD_DIR).filter(f => f.startsWith('products_latest'));
+  if (!files.length) return res.status(404).json({ error: 'Файл выгрузки не найден. Загрузите файл через POST /api/iiko/upload/products', hint: 'Файловый режим активен' });
+  try {
+    const delta = await runProductSync(path.join(UPLOAD_DIR, files[0]));
+    res.json(delta);
+  } catch (e) {
+    res.status(422).json({ error: e.message });
+  }
+});
+
+// GET /api/iiko/status
+router.get('/status', (req, res) => {
+  const syncData = fs.existsSync(LAST_SYNC_FILE) ? JSON.parse(fs.readFileSync(LAST_SYNC_FILE)) : {};
+  const productsFile = fs.readdirSync(UPLOAD_DIR).some(f => f.startsWith('products_latest'));
+  const bonusesFile = fs.readdirSync(UPLOAD_DIR).some(f => f.startsWith('bonuses_latest'));
+  res.json({
+    // Обратная совместимость
+    connected: false,
+    configured: false,
+    mode: 'file',
+    // Новые поля
+    last_products_sync: syncData.products || null,
+    last_bonuses_sync: syncData.bonuses || null,
+    products_file_exists: productsFile,
+    bonuses_file_exists: bonusesFile,
+  });
+});
+
+module.exports = router;

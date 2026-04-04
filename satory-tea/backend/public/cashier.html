@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Satory — Касса</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; color: #fff; font-family: -apple-system, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
+    .logo { color: #C9A84C; font-size: 22px; letter-spacing: 4px; text-transform: uppercase; font-weight: 300; margin-bottom: 8px; }
+    .subtitle { color: #666; font-size: 13px; margin-bottom: 32px; }
+    #reader { width: 100%; max-width: 400px; border-radius: 16px; overflow: hidden; border: 2px solid #2a2a2a; }
+    .card { background: #1a1a1a; border-radius: 20px; padding: 24px; width: 100%; max-width: 400px; margin-top: 24px; display: none; }
+    .card.visible { display: block; }
+    .card-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .card-phone { color: #888; font-size: 14px; margin-bottom: 16px; }
+    .bonus-row { display: flex; justify-content: space-between; align-items: center; background: #141414; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
+    .bonus-label { color: #888; font-size: 13px; }
+    .bonus-value { color: #C9A84C; font-size: 18px; font-weight: 700; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .status-bronze { background: #CD7F3222; color: #CD7F32; }
+    .status-silver { background: #C0C0C022; color: #C0C0C0; }
+    .status-gold   { background: #C9A84C22; color: #C9A84C; }
+    .error-card { background: #E5393522; border: 1px solid #E53935; border-radius: 16px; padding: 16px; width: 100%; max-width: 400px; margin-top: 24px; display: none; color: #E53935; text-align: center; }
+    .error-card.visible { display: block; }
+    .btn { background: #C9A84C; color: #0a0a0a; border: none; border-radius: 12px; padding: 12px 24px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 16px; width: 100%; }
+    .btn:hover { background: #E8C96A; }
+    .scanning-hint { color: #555; font-size: 13px; text-align: center; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="logo">Satory</div>
+  <div class="subtitle">Терминал кассира — сканирование QR гостя</div>
+
+  <div id="reader"></div>
+  <p class="scanning-hint">Наведите камеру на QR-код из приложения гостя</p>
+
+  <div class="card" id="guestCard">
+    <div class="card-name" id="guestName">—</div>
+    <div class="card-phone" id="guestPhone">—</div>
+    <div class="bonus-row">
+      <span class="bonus-label">Бонусный баланс</span>
+      <span class="bonus-value" id="guestBonus">—</span>
+    </div>
+    <div class="bonus-row">
+      <span class="bonus-label">Статус</span>
+      <span class="status-badge" id="guestStatus">—</span>
+    </div>
+    <button class="btn" onclick="resetScanner()">Сканировать следующего</button>
+  </div>
+
+  <div class="error-card" id="errorCard">
+    <div id="errorText">Ошибка</div>
+    <button class="btn" onclick="resetScanner()">Попробовать снова</button>
+  </div>
+
+  <script>
+    let scanner = null;
+    let scanning = true;
+
+    function startScanner() {
+      scanner = new Html5Qrcode('reader');
+      scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 280, height: 280 } },
+        onScanSuccess,
+        () => {}
+      ).catch(err => showError('Нет доступа к камере: ' + err));
+    }
+
+    async function onScanSuccess(decodedText) {
+      if (!scanning) return;
+      scanning = false;
+      if (scanner) scanner.pause();
+
+      try {
+        const resp = await fetch('/api/bonus/qr/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ qr_data: decodedText }),
+        });
+        const data = await resp.json();
+
+        if (!data.valid) {
+          const reasons = { expired: 'QR-код устарел (более 5 минут)', invalid_signature: 'Недействительный QR-код', missing_fields: 'Неверный формат QR' };
+          showError(reasons[data.reason] || 'QR-код недействителен');
+          return;
+        }
+
+        document.getElementById('guestName').textContent = data.userName || 'Гость';
+        document.getElementById('guestPhone').textContent = data.phone;
+        document.getElementById('guestBonus').textContent = data.bonus_balance + ' баллов';
+
+        const statusEl = document.getElementById('guestStatus');
+        statusEl.textContent = data.loyalty_status || 'Бронза';
+        statusEl.className = 'status-badge ' + ({ 'Золото': 'status-gold', 'Серебро': 'status-silver' }[data.loyalty_status] || 'status-bronze');
+
+        document.getElementById('guestCard').classList.add('visible');
+        document.getElementById('errorCard').classList.remove('visible');
+      } catch (e) {
+        showError('Ошибка соединения с сервером');
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('errorText').textContent = msg;
+      document.getElementById('errorCard').classList.add('visible');
+      document.getElementById('guestCard').classList.remove('visible');
+    }
+
+    function resetScanner() {
+      scanning = true;
+      document.getElementById('guestCard').classList.remove('visible');
+      document.getElementById('errorCard').classList.remove('visible');
+      if (scanner) scanner.resume();
+    }
+
+    startScanner();
+  </script>
+</body>
+</html>
