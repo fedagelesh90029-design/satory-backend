@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  FlatList, Dimensions,
+  FlatList, Dimensions, ImageBackground,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -51,22 +51,28 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/* Banner */}
-      <View style={styles.banner}>
-        <View style={styles.bannerBadge}>
-          <Text style={styles.bannerBadgeText}>СПЕЦИАЛЬНОЕ ПРЕДЛОЖЕНИЕ</Text>
+      <ImageBackground
+        source={require('../../assets/banner.jpg')}
+        style={[styles.banner, { overflow: 'hidden' }]}
+        imageStyle={{ borderRadius: 20, opacity: 0.7, resizeMode: 'cover' }}
+      >
+        <View style={styles.bannerOverlay}>
+          <View style={styles.bannerBadge}>
+            <Text style={styles.bannerBadgeText}>SATORY TEA</Text>
+          </View>
+          <Text style={styles.bannerTitle}>Место, где чай{'\n'}становится ритуалом</Text>
+          <TouchableOpacity style={styles.bannerBtn} onPress={() => router.push('/(tabs)/catalog')}>
+            <Text style={styles.bannerBtnText}>Смотреть  ›</Text>
+          </TouchableOpacity>
         </View>
-        <Text style={styles.bannerTitle}>Новая коллекция{'\n'}весенних чаёв</Text>
-        <TouchableOpacity style={styles.bannerBtn} onPress={() => router.push('/(tabs)/catalog')}>
-          <Text style={styles.bannerBtnText}>Смотреть  ›</Text>
-        </TouchableOpacity>
-      </View>
+      </ImageBackground>
 
       {/* Stats */}
       <View style={styles.statsRow}>
         {[
-          { icon: 'leaf-outline', value: '200+', label: 'сортов чая' },
-          { icon: 'ribbon-outline', value: '5 лет', label: 'на рынке' },
-          { icon: 'star-outline', value: '4.9★', label: 'рейтинг' },
+          { icon: 'leaf-outline', value: 'Китай', label: 'прямые поставки' },
+          { icon: 'flame-outline', value: 'Гунфу', label: 'традиция заварки' },
+          { icon: 'star-outline', value: '4.9★', label: 'оценка гостей' },
         ].map((s, i) => (
           <View key={i} style={styles.statCard}>
             <Ionicons name={s.icon as any} size={20} color={Colors.gold} />
@@ -101,7 +107,7 @@ export default function HomeScreen() {
             <Text style={styles.seeAll}>Все ›</Text>
           </TouchableOpacity>
         </View>
-        {upcoming.map(ev => (
+        {upcoming.length > 0 ? upcoming.map(ev => (
           <TouchableOpacity key={ev._id || ev.id} style={styles.eventCard} onPress={() => router.push('/(tabs)/events')}>
             <View style={styles.eventDate}>
               <Text style={styles.eventDay}>{new Date(ev.date).getDate()}</Text>
@@ -115,7 +121,11 @@ export default function HomeScreen() {
               <Text style={styles.eventTime}>⏱ {ev.time_start} — {ev.time_end}</Text>
             </View>
           </TouchableOpacity>
-        ))}
+        )) : (
+          <View style={styles.emptyEvents}>
+            <Text style={styles.emptyEventsText}>🍵 Скоро анонсируем новые события</Text>
+          </View>
+        )}
       </View>
 
       <View style={{ height: 100 }} />
@@ -151,8 +161,12 @@ const styles = StyleSheet.create({
   chatBubbleText: { color: Colors.grayLight, fontSize: 12, lineHeight: 17 },
   banner: {
     marginHorizontal: 20, borderRadius: 20,
-    backgroundColor: Colors.card, padding: 24, marginBottom: 16,
-    minHeight: 160, justifyContent: 'flex-end',
+    aspectRatio: 1.5, marginBottom: 16,
+    overflow: 'hidden',
+  },
+  bannerOverlay: {
+    flex: 1, padding: 24, justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 20,
   },
   bannerBadge: {
     backgroundColor: Colors.gold, alignSelf: 'flex-start',
@@ -188,6 +202,11 @@ const styles = StyleSheet.create({
   eventType: { color: Colors.gold, fontSize: 11, marginBottom: 2 },
   eventTitle: { color: Colors.white, fontSize: 14, fontWeight: '600', marginBottom: 4 },
   eventTime: { color: Colors.gray, fontSize: 12 },
+  emptyEvents: {
+    backgroundColor: Colors.card, borderRadius: 14,
+    padding: 20, alignItems: 'center',
+  },
+  emptyEventsText: { color: Colors.gray, fontSize: 14 },
   fab: {
     position: 'absolute', bottom: 90, right: 20,
     width: 52, height: 52, borderRadius: 26,

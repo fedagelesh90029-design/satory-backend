@@ -68,7 +68,7 @@ export default function ProfileScreen() {
           <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[user.loyalty_status] + '33' }]}>
             <Ionicons name="ribbon-outline" size={12} color={STATUS_COLORS[user.loyalty_status]} />
             <Text style={[styles.statusText, { color: STATUS_COLORS[user.loyalty_status] }]}>
-              {user.loyalty_status} член
+              {user.loyalty_status}
             </Text>
           </View>
         </View>

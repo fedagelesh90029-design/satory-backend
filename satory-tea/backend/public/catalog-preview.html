@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Каталог — Satory Tea</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; display: flex; justify-content: center; padding: 20px; font-family: -apple-system, sans-serif; }
+  .phone { width: 390px; background: #111; min-height: 100vh; }
+  h2 { color: #fff; font-size: 22px; padding: 16px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 8px 80px; }
+  .card { background: #1e1e1e; border-radius: 16px; overflow: hidden; }
+  .card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  .card .info { padding: 10px; }
+  .card .name { color: #fff; font-size: 13px; font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
+  .card .price { color: #C9A84C; font-size: 14px; font-weight: 700; }
+  .card .cat { color: #888; font-size: 10px; margin-bottom: 4px; }
+  .empty { color: #555; text-align: center; padding: 40px; grid-column: span 2; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <h2>Каталог</h2>
+  <div class="grid" id="grid">
+    <div class="empty">Загрузка...</div>
+  </div>
+</div>
+<script>
+fetch('/api/products')
+  .then(r => r.json())
+  .then(products => {
+    const grid = document.getElementById('grid');
+    if (!products.length) { grid.innerHTML = '<div class="empty">Нет товаров</div>'; return; }
+    grid.innerHTML = products.map(p => {
+      const img = p.image_url
+        ? (p.image_url.startsWith('http') ? p.image_url : p.image_url)
+        : null;
+      return `<div class="card">
+        ${img ? `<img src="${img}" alt="${p.name}" onerror="this.style.display='none'">` : ''}
+        <div class="info">
+          <div class="cat">${p.category || ''}</div>
+          <div class="name">${p.name}</div>
+          <div class="price">${Number(p.price).toLocaleString('ru')} ₽</div>
+        </div>
+      </div>`;
+    }).join('');
+  });
+</script>
+</body>
+</html>

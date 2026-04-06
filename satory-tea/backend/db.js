@@ -29,14 +29,6 @@ async function seed() {
     { name: 'Да Хун Пао', category: 'Улун', description: 'Классический улун с минеральным вкусом', year: 2022, weight: '100г', price: 3200, rating: 4.9, reviews_count: 98, badge: 'Хит' },
   ]);
 
-  await db.events.insert([
-    { title: 'Весенняя дегустация пуэров', type: 'Дегустация', date: '2026-04-15', time_start: '19:00', time_end: '21:30', price: 3500, seats_total: 20, seats_taken: 12 },
-    { title: 'Мастер-класс по гунфу-ча', type: 'Мастер-класс', date: '2026-04-22', time_start: '18:30', time_end: '21:00', price: 2800, seats_total: 15, seats_taken: 3 },
-    { title: 'Чайная церемония Гайвань', type: 'Церемония', date: '2026-05-10', time_start: '17:00', time_end: '19:00', price: 2000, seats_total: 12, seats_taken: 5 },
-    { title: 'Дегустация улунов', type: 'Дегустация', date: '2026-05-18', time_start: '19:00', time_end: '21:00', price: 3000, seats_total: 20, seats_taken: 8 },
-    { title: 'Введение в пуэр', type: 'Мастер-класс', date: '2026-06-05', time_start: '18:00', time_end: '20:30', price: 2500, seats_total: 18, seats_taken: 2 },
-  ]);
-
   console.log('✅ База данных заполнена');
 }
 

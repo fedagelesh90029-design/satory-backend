@@ -3,9 +3,10 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 
 router.get('/', async (req, res) => {
-  const { category, search } = req.query;
+  const { category, search, excludeCategory } = req.query;
   const query = {};
   if (category && category !== 'Все') query.category = category;
+  if (excludeCategory) query.category = { $ne: excludeCategory };
   if (search) query.name = new RegExp(search, 'i');
   const products = await db.products.find(query);
   res.json(products);

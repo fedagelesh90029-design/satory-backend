@@ -10,7 +10,12 @@ import { apiFetch } from '../../constants/api';
 import { ProductCard } from '../../components/ProductCard';
 import { useCart } from '../../context/CartContext';
 
-const CATEGORIES = ['Все', 'Шу Пуэр', 'Шэн Пуэр', 'Улун', 'Белый', 'Посуда'];
+const CATEGORIES = [
+  { id: 'Все',     label: 'Все',    emoji: '🍃' },
+  { id: 'Чай',    label: 'Чай',    emoji: '🍵' },
+  { id: 'Посуда', label: 'Посуда', emoji: '🫖' },
+];
+
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 40) / 2;
 
@@ -18,14 +23,17 @@ export default function CatalogScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [category, setCategory] = useState('Все');
   const [search, setSearch] = useState('');
-  const [cartCount, setCartCount] = useState(0);
   const [iikoSync, setIikoSync] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const { add, count: cartCount2 } = useCart();
+  const { add, count: cartCount } = useCart();
   const router = useRouter();
 
   const load = () => {
     const params = new URLSearchParams();
-    if (category !== 'Все') params.set('category', category);
+    if (category === 'Посуда') {
+      params.set('category', 'Посуда');
+    } else if (category === 'Чай') {
+      params.set('excludeCategory', 'Посуда');
+    }
     if (search) params.set('search', search);
     apiFetch(`/products?${params}`).then(setProducts).catch(() => {});
   };
@@ -51,7 +59,6 @@ export default function CatalogScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Каталог</Text>
         <View style={styles.headerRight}>
-          {/* iiko sync button */}
           <TouchableOpacity
             style={[styles.iikoBtn, iikoSync === 'done' && styles.iikoBtnDone, iikoSync === 'error' && styles.iikoBtnError]}
             onPress={syncIiko}
@@ -59,22 +66,19 @@ export default function CatalogScreen() {
           >
             <Ionicons
               name={iikoSync === 'done' ? 'checkmark' : iikoSync === 'error' ? 'close' : 'sync-outline'}
-              size={14}
+              size={13}
               color={iikoSync === 'idle' ? Colors.gray : Colors.white}
             />
             <Text style={[styles.iikoBtnText, iikoSync !== 'idle' && { color: Colors.white }]}>
-              {iikoSync === 'loading' ? 'Синхронизация...' :
-               iikoSync === 'done' ? 'Обновлено' :
-               iikoSync === 'error' ? 'Ошибка' : 'iiko'}
+              {iikoSync === 'loading' ? '...' : iikoSync === 'done' ? 'OK' : iikoSync === 'error' ? '!' : 'iiko'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.cartBtn} onPress={() => router.push('/cart')}>
             <Ionicons name="cart-outline" size={18} color={Colors.gold} />
-            <Text style={styles.cartText}>Корзина</Text>
-            {cartCount2 > 0 && (
+            {cartCount > 0 && (
               <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{cartCount2}</Text>
+                <Text style={styles.cartBadgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -98,23 +102,22 @@ export default function CatalogScreen() {
         )}
       </View>
 
-      {/* Categories — фиксированный горизонтальный скролл */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.catsScroll}
-        contentContainerStyle={styles.catsContent}
-      >
-        {CATEGORIES.map(cat => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.catChip, category === cat && styles.catChipActive]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text style={[styles.catText, category === cat && styles.catTextActive]}>{cat}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Categories */}
+      <View style={styles.catsRow}>
+        {CATEGORIES.map(cat => {
+          const active = category === cat.id;
+          return (
+            <TouchableOpacity
+              key={cat.id}
+              style={[styles.catChip, active && styles.catChipActive]}
+              onPress={() => setCategory(cat.id)}
+            >
+              <Text style={styles.catEmoji}>{cat.emoji}</Text>
+              <Text style={[styles.catText, active && styles.catTextActive]}>{cat.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       <Text style={styles.count}>{products.length} товаров</Text>
 
@@ -143,21 +146,23 @@ const styles = StyleSheet.create({
   title: { color: Colors.white, fontSize: 28, fontWeight: '700' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iikoBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.card, paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: 16, borderWidth: 1, borderColor: Colors.border,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: Colors.card, paddingHorizontal: 8, paddingVertical: 6,
+    borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
   },
   iikoBtnDone: { backgroundColor: Colors.green, borderColor: Colors.green },
   iikoBtnError: { backgroundColor: Colors.red, borderColor: Colors.red },
   iikoBtnText: { color: Colors.gray, fontSize: 11, fontWeight: '600' },
   cartBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.card, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: Colors.card, alignItems: 'center', justifyContent: 'center',
+    position: 'relative',
   },
-  cartText: { color: Colors.gold, fontSize: 13, fontWeight: '600' },
   cartBadge: {
+    position: 'absolute', top: -2, right: -2,
     backgroundColor: Colors.red, borderRadius: 8,
-    width: 16, height: 16, alignItems: 'center', justifyContent: 'center',
+    minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
   },
   cartBadgeText: { color: Colors.white, fontSize: 9, fontWeight: '700' },
   searchBox: {
@@ -166,24 +171,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12,
   },
   searchInput: { flex: 1, color: Colors.white, fontSize: 14 },
+  catsRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12 },
   catsScroll: { flexGrow: 0, marginBottom: 12 },
-  catsContent: {
-    paddingHorizontal: 20,
-    paddingRight: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  catsContent: { paddingHorizontal: 16, gap: 8, alignItems: 'center', flexDirection: 'row' },
   catChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: 8,   // ← вместо gap
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 16, paddingVertical: 9,
+    borderRadius: 22, backgroundColor: Colors.card,
+    borderWidth: 1, borderColor: Colors.border,
   },
   catChipActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  catText: { color: Colors.grayLight, fontSize: 13, fontWeight: '500' },
+  catEmoji: { fontSize: 14 },
+  catText: { color: Colors.grayLight, fontSize: 13, fontWeight: '500', flexShrink: 0, whiteSpace: 'nowrap' } as any,
   catTextActive: { color: Colors.bg, fontWeight: '700' },
   count: { color: Colors.gray, fontSize: 13, paddingHorizontal: 20, marginBottom: 8 },
   row: { paddingHorizontal: 10, marginBottom: 8 },

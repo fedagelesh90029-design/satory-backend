@@ -25,6 +25,9 @@ app.use('/api/orders', require('./routes/orders'));
 // Статические файлы для кассира
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Статические файлы для загрузок (фото товаров и т.д.)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Запуск cron-задач
 require('./services/fileWatcher').initWatcher();
 
