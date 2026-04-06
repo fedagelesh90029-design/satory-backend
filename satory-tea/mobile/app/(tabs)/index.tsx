@@ -58,7 +58,7 @@ export default function HomeScreen() {
       >
         <View style={styles.bannerOverlay}>
           <View style={styles.bannerBadge}>
-            <Text style={styles.bannerBadgeText}>SATORY TEA</Text>
+            <Text style={styles.bannerBadgeText}>SATORI TEA</Text>
           </View>
           <Text style={styles.bannerTitle}>Место, где чай{'\n'}становится ритуалом</Text>
           <TouchableOpacity style={styles.bannerBtn} onPress={() => router.push('/(tabs)/catalog')}>

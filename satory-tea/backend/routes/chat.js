@@ -3,7 +3,7 @@ const Groq = require('groq-sdk');
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
-const SYSTEM_PROMPT = `Ты — чайный советник чайного дома «Satory». Твоё имя — Советник Satory.
+const SYSTEM_PROMPT = `Ты — чайный советник чайного дома «Satori». Твоё имя — Советник Satori.
 
 О чайном доме:
 - Специализация: китайский чай, особенно пуэры (шу и шэн), улуны, белый чай

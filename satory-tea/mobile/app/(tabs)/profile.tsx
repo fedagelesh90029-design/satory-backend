@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
+import { SatoryLogoIcon } from '../../components/SatoryLogo';
 
 const STATUS_COLORS: Record<string, string> = {
   'Бронза': '#CD7F32',

@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { Colors } from '../constants/theme';
 
-// Логотип Satory без SVG зависимостей
-export function SatoryLogoIcon({ size = 40, color = Colors.gold }: { size?: number; color?: string }) {
+const logoImage = require('../assets/logo.png');
+
+export function SatoryLogoIcon({ size = 40 }: { size?: number }) {
   return (
-    <View style={[styles.circle, { width: size, height: size, borderRadius: size / 2, borderColor: color }]}>
-      <Text style={[styles.kanji, { color, fontSize: size * 0.35 }]}>悟</Text>
-    </View>
+    <Image
+      source={logoImage}
+      style={{ width: size, height: size, resizeMode: 'contain' }}
+    />
   );
 }
 
@@ -15,7 +17,7 @@ export function SatoryLogoFull({ size = 40 }: { size?: number }) {
   return (
     <View style={styles.row}>
       <SatoryLogoIcon size={size} />
-      <Text style={[styles.name, { fontSize: size * 0.55 }]}>Satory</Text>
+      <Text style={[styles.name, { fontSize: size * 0.55 }]}>Satori</Text>
     </View>
   );
 }

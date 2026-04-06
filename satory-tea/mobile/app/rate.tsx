@@ -45,7 +45,7 @@ export default function RateScreen() {
         <View style={{ width: 40 }} />
       </View>
       <View style={styles.content}>
-        <Text style={styles.question}>Как вам приложение Satory?</Text>
+        <Text style={styles.question}>Как вам приложение Satori?</Text>
         <View style={styles.stars}>
           {[1,2,3,4,5].map(s => (
             <TouchableOpacity key={s} onPress={() => setStars(s)}>
