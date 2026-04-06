@@ -9,6 +9,7 @@ import { Colors } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../constants/api';
 import { SatoryLogoFull } from '../components/SatoryLogo';
+import { showWelcomeNotification } from '../utils/notifications';
 
 type AuthMode = 'phone' | 'otp' | 'name' | 'email';
 
@@ -82,13 +83,13 @@ export default function AuthScreen() {
         body: JSON.stringify({ phone, code }),
       });
       if (data.is_new) {
-        // Сохраняем токен и пользователя, переходим к вводу имени
         setPendingToken(data.token);
         setPendingUser(data.user);
         setMode('name');
         return;
       }
       await loginWithPhone(data.token, data.user);
+      await showWelcomeNotification(data.user.name || 'Гость', false);
       router.replace('/(tabs)/profile');
     } catch (e: any) {
       Alert.alert('Ошибка', e.message);
@@ -108,6 +109,7 @@ export default function AuthScreen() {
         body: JSON.stringify({ name }),
       }, pendingToken);
       await loginWithPhone(pendingToken, { ...pendingUser, name });
+      await showWelcomeNotification(name, true);
       router.replace('/(tabs)/profile');
     } catch (e: any) {
       Alert.alert('Ошибка', e.message);

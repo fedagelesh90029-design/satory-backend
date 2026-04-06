@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const data = await apiFetch('/user/me', {}, t);
           setUser(data);
         } catch {
-          await AsyncStorage.removeItem('token');
+          await storage.removeItem('token');
         }
       }
     });
