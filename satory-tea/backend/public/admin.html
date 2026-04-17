@@ -817,13 +817,24 @@ let _currentUserId = null;
 
 function renderCashier() {
   document.getElementById('main').innerHTML = `
-    <div class="page-header"><h1>📷 Касса</h1></div>
+    <div class="page-header"><h1>Касса</h1></div>
+
+    <!-- Поле для USB-сканера (перехватывает ввод автоматически) -->
+    <div class="card" style="padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:13px;color:var(--muted);white-space:nowrap">USB-сканер:</div>
+      <input id="usb-scanner-input" type="text"
+        placeholder="Поднесите сканер к QR-коду гостя — данные появятся здесь автоматически"
+        style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;color:var(--text);font-size:13px;outline:none"
+        autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="btn btn-primary btn-sm" onclick="processUsbScan()">Проверить</button>
+    </div>
+
     <div class="cashier-wrap">
       <div class="cashier-scanner">
         <div class="card" style="padding:16px">
-          <h2 style="margin-bottom:12px">Сканер QR-кода</h2>
+          <h2 style="margin-bottom:12px">Камера</h2>
           <div id="qr-reader"></div>
-          <p class="scan-hint">Наведите камеру на QR-код из приложения гостя</p>
+          <p class="scan-hint">Или наведите камеру на QR-код гостя</p>
           <div class="qr-error" id="qr-error">
             <div id="qr-error-text">Ошибка</div>
             <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%" onclick="resetQR()">Попробовать снова</button>
@@ -861,15 +872,50 @@ function renderCashier() {
         <div class="card" id="guest-empty" style="text-align:center;color:var(--muted);padding:40px">
           <div style="font-size:48px;margin-bottom:12px">📱</div>
           <div>Отсканируйте QR-код гостя</div>
-          <div style="font-size:12px;margin-top:6px">Гость показывает QR из раздела «Профиль» приложения</div>
+          <div style="font-size:12px;margin-top:6px">Используйте камеру или USB-сканер</div>
         </div>
       </div>
     </div>`;
 
   startQRScanner();
+  initUsbScanner();
 }
 
-function startQRScanner() {
+function initUsbScanner() {
+  const input = document.getElementById('usb-scanner-input');
+  if (!input) return;
+
+  // USB-сканер вводит данные быстро и нажимает Enter
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      processUsbScan();
+    }
+  });
+
+  // Автофокус на поле — сканер сразу пишет в него
+  input.focus();
+
+  // Возвращаем фокус если кликнули куда-то ещё
+  document.addEventListener('click', (e) => {
+    const purchaseInput = document.getElementById('purchase-amount');
+    const accrueBtn = document.getElementById('accrue-btn');
+    if (e.target !== purchaseInput && e.target !== accrueBtn && e.target !== input) {
+      input?.focus();
+    }
+  });
+}
+
+async function processUsbScan() {
+  const input = document.getElementById('usb-scanner-input');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  await onQRSuccess(text);
+}
+
+
   _qrScanning = true;
   _currentUserId = null;
   if (_qrScanner) {
