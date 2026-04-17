@@ -659,6 +659,7 @@ async function renderGallery() {
 
 function renderGalleryGrid() {
   const w = document.getElementById('g-wrap');
+  if (!w) return;
   if (!_gallery.length) { w.innerHTML='<p class="empty">Фото пока нет</p>'; return; }
   w.innerHTML = `<div class="gallery-grid">${_gallery.map((g,i)=>`
     <div class="gallery-item" id="gi-${g._id}">
@@ -779,6 +780,7 @@ async function renderOrders() {
     <div class="card" id="orders-wrap"><p class="empty">Загрузка...</p></div>`;
   const orders = await api('GET','/api/admin/orders'); if(!orders) return;
   const wrap = document.getElementById('orders-wrap');
+  if (!wrap) return;
   if(!orders.length){wrap.innerHTML='<p class="empty">Заказов пока нет</p>';return;}
 
   const statusLabels = {pending:'Ожидает',confirmed:'Подтверждён',ready:'Готов',completed:'Выполнен',cancelled:'Отменён'};
@@ -908,74 +910,145 @@ function initUsbScanner() {
 
 async function processUsbScan() {
   const input = document.getElementById('usb-scanner-input');
-  if (!input) return;
+  if (!input) {
+    console.error('[USB] Поле ввода не найдено');
+    return;
+  }
   const text = input.value.trim();
-  if (!text) return;
+  if (!text) {
+    toast('Введите данные QR-кода', 'err');
+    return;
+  }
+  console.log('[USB] Обработка:', text);
+  console.log('[USB] Длина:', text.length);
   input.value = '';
+  
+  // Сбрасываем состояние перед новым сканированием
+  _qrScanning = true;
+  
   await onQRSuccess(text);
 }
 
-function startQRScanner() {  if (_qrScanner) {
-    _qrScanner.clear().catch(() => {});
+function startQRScanner() {
+  if (_qrScanner) {
+    try {
+      _qrScanner.stop().catch(() => {});
+    } catch (e) {
+      console.log('[QR] Ошибка остановки сканера:', e);
+    }
     _qrScanner = null;
   }
-  _qrScanner = new Html5Qrcode('qr-reader');
-  _qrScanner.start(
-    { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 240, height: 240 } },
-    onQRSuccess,
-    () => {}
-  ).catch(() => {
-    // Fallback — попробуем любую камеру
-    Html5Qrcode.getCameras().then(cameras => {
-      if (!cameras.length) { showQRError('Камера не найдена'); return; }
-      _qrScanner.start(
-        cameras[0].id,
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        onQRSuccess,
-        () => {}
-      ).catch(e => showQRError('Нет доступа к камере: ' + e));
-    }).catch(() => showQRError('Нет доступа к камере'));
-  });
+  
+  try {
+    _qrScanner = new Html5Qrcode('qr-reader');
+    _qrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      onQRSuccess,
+      () => {}
+    ).catch(() => {
+      // Fallback — попробуем любую камеру
+      Html5Qrcode.getCameras().then(cameras => {
+        if (!cameras.length) { 
+          console.log('[QR] Камера не найдена, используйте USB-сканер');
+          return; 
+        }
+        _qrScanner.start(
+          cameras[0].id,
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          onQRSuccess,
+          () => {}
+        ).catch(e => {
+          console.log('[QR] Нет доступа к камере:', e);
+        });
+      }).catch(() => {
+        console.log('[QR] Камера недоступна, используйте USB-сканер');
+      });
+    });
+  } catch (e) {
+    console.error('[QR] Ошибка инициализации сканера:', e);
+  }
 }
 
 async function onQRSuccess(text) {
-  if (!_qrScanning) return;
+  console.log('[QR] onQRSuccess вызван, _qrScanning:', _qrScanning);
+  
+  if (!_qrScanning) {
+    console.log('[QR] Пропускаем - уже обрабатывается');
+    return;
+  }
+  
   _qrScanning = false;
-  if (_qrScanner) _qrScanner.pause();
+  console.log('[QR] Установлен _qrScanning = false');
+  
+  if (_qrScanner) {
+    try {
+      _qrScanner.pause();
+      console.log('[QR] Сканер поставлен на паузу');
+    } catch (e) {
+      console.log('[QR] Не удалось поставить на паузу:', e.message);
+    }
+  }
 
   try {
+    console.log('[QR] Отправка запроса на /api/bonus/qr/verify');
+    console.log('[QR] Данные:', text);
+    
     const resp = await fetch('/api/bonus/qr/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ qr_data: text }),
     });
+    
+    console.log('[QR] Статус ответа:', resp.status);
     const data = await resp.json();
+    console.log('[QR] Ответ сервера:', data);
 
     if (!data.valid) {
       const reasons = {
         expired: 'QR-код устарел (более 5 минут)',
         invalid_signature: 'Недействительный QR-код',
         missing_fields: 'Неверный формат QR',
+        invalid_json: 'Неверный формат JSON',
       };
-      showQRError(reasons[data.reason] || 'QR-код недействителен');
+      const errorMsg = reasons[data.reason] || `QR-код недействителен (${data.reason})`;
+      console.error('[QR] Ошибка валидации:', errorMsg);
+      showQRError(errorMsg);
       return;
     }
 
+    console.log('[QR] QR-код валиден, показываем карточку гостя');
     _currentUserId = data.userId;
+    
+    const guestCard = document.getElementById('guest-card');
+    const guestEmpty = document.getElementById('guest-empty');
+    const qrError = document.getElementById('qr-error');
+    
+    console.log('[QR] Элементы:', {
+      guestCard: !!guestCard,
+      guestEmpty: !!guestEmpty,
+      qrError: !!qrError
+    });
+    
     document.getElementById('guest-name').textContent    = data.userName || 'Гость';
     document.getElementById('guest-phone').textContent   = data.phone;
     document.getElementById('guest-balance').textContent = (data.bonus_balance ?? 0) + ' баллов';
     document.getElementById('guest-status').textContent  = data.loyalty_status || 'Бронза';
-    document.getElementById('guest-card').classList.add('visible');
-    document.getElementById('guest-empty').style.display = 'none';
-    document.getElementById('qr-error').classList.remove('visible');
+    
+    guestCard.classList.add('visible');
+    guestEmpty.style.display = 'none';
+    qrError.classList.remove('visible');
+    
     document.getElementById('purchase-amount').value = '';
     document.getElementById('accrue-preview').textContent = '';
     document.getElementById('accrue-result').style.display = 'none';
     document.getElementById('accrue-btn').disabled = true;
-  } catch {
-    showQRError('Ошибка соединения с сервером');
+    
+    console.log('[QR] Карточка гостя показана');
+    toast('✅ Гость найден: ' + (data.userName || 'Гость'));
+  } catch (e) {
+    console.error('[QR] Ошибка:', e);
+    showQRError('Ошибка соединения с сервером: ' + e.message);
   }
 }
 
@@ -991,7 +1064,13 @@ function resetQR() {
   document.getElementById('guest-card').classList.remove('visible');
   document.getElementById('guest-empty').style.display = 'block';
   document.getElementById('qr-error').classList.remove('visible');
-  if (_qrScanner) _qrScanner.resume();
+  if (_qrScanner) {
+    try {
+      _qrScanner.resume();
+    } catch (e) {
+      console.log('[QR] Не удалось возобновить сканирование:', e);
+    }
+  }
 }
 
 function updateAccruePreview() {
