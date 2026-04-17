@@ -915,10 +915,7 @@ async function processUsbScan() {
   await onQRSuccess(text);
 }
 
-
-  _qrScanning = true;
-  _currentUserId = null;
-  if (_qrScanner) {
+function startQRScanner() {  if (_qrScanner) {
     _qrScanner.clear().catch(() => {});
     _qrScanner = null;
   }
