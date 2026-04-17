@@ -1,5 +1,5 @@
 export const API_BASE = 'https://satory-backend-production.up.railway.app/api'; // Railway
-// export const API_BASE = 'http://192.168.31.63:3000/api'; // локальный
+// export const API_BASE = 'http://localhost:3000/api'; // локальный
 export const MEDIA_BASE = API_BASE.replace('/api', '');
 
 export async function apiFetch(path: string, options?: RequestInit, token?: string | null) {

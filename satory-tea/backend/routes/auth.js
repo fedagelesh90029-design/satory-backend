@@ -4,22 +4,10 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('../db');
 const { normalizePhone } = require('../services/iikoFileParser');
+const { sendSms } = require('./auth_helpers');
 
 const SECRET = process.env.JWT_SECRET || 'satory_secret_2026';
 const OTP_TTL = 5 * 60 * 1000; // 5 минут
-
-// ─── SMS провайдер ────────────────────────────────────────────────────────────
-// В dev-режиме код выводится в консоль.
-// Для prod задайте SMS_PROVIDER=smsru и SMS_API_KEY=ваш_ключ
-async function sendSms(phone, code) {
-  if (process.env.SMS_PROVIDER === 'smsru' && process.env.SMS_API_KEY) {
-    const url = `https://sms.ru/sms/send?api_id=${process.env.SMS_API_KEY}&to=${phone}&msg=Ваш+код+Satory:+${code}&json=1`;
-    await fetch(url).catch(() => {});
-  } else {
-    // DEV: код в консоль
-    console.log(`\n📱 OTP для ${phone}: ${code}\n`);
-  }
-}
 
 // ─── POST /api/auth/send-otp ──────────────────────────────────────────────────
 router.post('/send-otp', async (req, res) => {
@@ -40,7 +28,7 @@ router.post('/send-otp', async (req, res) => {
     await db.otp_codes.insert({ phone: normalized, code, expires_at, attempts: 0 });
   }
 
-  await sendSms(normalized, code);
+  await sendSms(normalized, `Ваш код Satori: ${code}`);
   res.json({ success: true, phone: normalized, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
 });
 

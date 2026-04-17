@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { calcLoyaltyStatus, normalizePhone } = require('../services/iikoFileParser');
+const { sendPushToUser } = require('../services/pushService');
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'satory_admin_2026';
 
@@ -48,6 +49,12 @@ router.post('/bonus/adjust', adminOnly, async (req, res) => {
   });
 
   res.json({ new_balance: newBalance, loyalty_status: newStatus, transaction_id: tx._id });
+
+  // Push пользователю об изменении бонусов
+  const msg = d >= 0
+    ? `Начислено ${d} бонусов. Баланс: ${newBalance}`
+    : `Списано ${Math.abs(d)} бонусов. Баланс: ${newBalance}`;
+  sendPushToUser(db, user._id, d >= 0 ? '🎁 Бонусы начислены' : '💳 Бонусы списаны', msg, { screen: 'loyalty' }).catch(() => {});
 });
 
 // GET /api/admin/sync/status — расширенный статус для админа

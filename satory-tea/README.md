@@ -1,6 +1,6 @@
-# Satory Tea App
+# Satori Tea App
 
-Мобильное приложение для чайной **Satory** (iOS + Android) + бэкенд.
+Мобильное приложение для чайной **Satori** (iOS + Android) + бэкенд.
 
 ## Запуск бэкенда
 

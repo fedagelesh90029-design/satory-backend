@@ -19,8 +19,25 @@ app.use('/api/user', require('./routes/user'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/iiko', require('./routes/iiko'));
 app.use('/api/bonus', require('./routes/bonus'));
+app.use('/api/admin/login', require('./routes/adminAuth'));
+app.use('/api/admin/events', require('./routes/adminEvents'));
+app.use('/api/admin/products', require('./routes/adminProducts'));
+app.use('/api/admin/gallery', require('./routes/adminGallery'));
+app.use('/api/admin/categories', require('./routes/adminCategories'));
+app.use('/api/admin/orders', require('./routes/adminOrders'));
+app.use('/api/admin/upload', require('./routes/adminUpload'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/orders', require('./routes/orders'));
+app.use('/api/sync', require('./routes/sync'));
+app.use('/api/gallery', require('./routes/gallery'));
+app.use('/api/settings', require('./routes/settings'));
+app.use('/api/admin/settings', require('./routes/settings'));
+app.use('/api/categories', async (req, res) => {
+  const db = require('./db');
+  const cats = await db.categories.find({ is_active: true });
+  cats.sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
+  res.json(cats);
+});
 
 // Статические файлы для кассира
 app.use(express.static(path.join(__dirname, 'public')));
@@ -30,8 +47,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Запуск cron-задач
 require('./services/fileWatcher').initWatcher();
+require('./services/yandexDiskSync').initYandexSync();
 
-app.get('/api/health', (_, res) => res.json({ status: 'ok', app: 'Satory Tea' }));
+app.get('/api/health', (_, res) => res.json({ status: 'ok', app: 'Satori Tea' }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Satory backend running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Satori backend running on port ${PORT}`));

@@ -98,4 +98,53 @@ router.post('/qr/verify', async (req, res) => {
   });
 });
 
+// ─── POST /api/bonus/accrue — начисление бонусов кассиром ────────────────────
+router.post('/accrue', async (req, res) => {
+  const { userId, purchaseAmount } = req.body;
+
+  if (!userId) return res.status(400).json({ error: 'userId обязателен' });
+
+  const amount = Number(purchaseAmount);
+  if (!amount || amount <= 0) return res.status(400).json({ error: 'Укажите корректную сумму покупки' });
+
+  const bonusAmount = Math.floor(amount * 0.03);
+  if (bonusAmount < 1) return res.status(400).json({ error: 'Сумма слишком мала (минимум 34 ₽)' });
+
+  const user = await db.users.findOne({ _id: userId });
+  if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+  const current = user.bonus_balance ?? 0;
+  const newBalance = current + bonusAmount;
+  const { calcLoyaltyStatus } = require('../services/iikoFileParser');
+  const newStatus = calcLoyaltyStatus(newBalance);
+  const now = new Date().toISOString();
+
+  await db.users.update({ _id: userId }, {
+    $set: { bonus_balance: newBalance, loyalty_status: newStatus, bonus_updated_at: now },
+  });
+
+  await db.bonus_transactions.insert({
+    user_id: userId,
+    phone: user.phone || '',
+    guest_name: user.name || '',
+    date: now,
+    operation_type: 'accrual',
+    accrued: bonusAmount,
+    spent: 0,
+    balance: newBalance,
+    description: `Начисление за покупку на ${amount} ₽`,
+    created_at: now,
+  });
+
+  // Push уведомление пользователю
+  const { sendPushToUser } = require('../services/pushService');
+  sendPushToUser(db, userId,
+    '🎁 Бонусы начислены',
+    `+${bonusAmount} баллов за покупку на ${amount} ₽. Баланс: ${newBalance}`,
+    { screen: 'loyalty' }
+  ).catch(() => {});
+
+  res.json({ success: true, accrued: bonusAmount, newBalance, loyalty_status: newStatus });
+});
+
 module.exports = router;

@@ -56,6 +56,8 @@ function getPlaceholder(item: any): { emoji: string; bg: string; accent: string 
   if (cat === 'зелёный' || cat.includes('зелён') || name.includes('лун цзин') || name.includes('би ло') || name.includes('люань') || name.includes('билочунь')) {
     return { emoji: '🍵', bg: '#061206', accent: '#2A7A2A' };
   }
+  // Заглушка по умолчанию
+  return { emoji: '🍵', bg: '#1A1A0A', accent: '#5A4A20' };
 }
 
 export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFav = false }: Props) {

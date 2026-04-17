@@ -52,6 +52,15 @@ async function runProductSync(filePath) {
 
   // Батчевый upsert
   for (const row of rows) {
+    // Автосоздание категории если новая
+    if (row.category) {
+      const catExists = await db.categories.findOne({ name: row.category });
+      if (!catExists) {
+        const count = await db.categories.count({});
+        await db.categories.insert({ name: row.category, is_active: true, sort_order: count, created_at: now });
+      }
+    }
+
     const existing = await db.products.findOne({ iiko_id: row.iiko_id });
     if (existing) {
       await db.products.update({ iiko_id: row.iiko_id }, {
@@ -59,11 +68,12 @@ async function runProductSync(filePath) {
           name: row.name, category: row.category, price: row.price,
           stock: row.stock, description: row.description, unit: row.unit,
           active: true, updated_at: now,
+          // price_override и category_override НЕ трогаем
         },
       });
       updated++;
     } else {
-      await db.products.insert({ ...row, active: true, rating: 0, reviews_count: 0, badge: null, year: null, updated_at: now });
+      await db.products.insert({ ...row, active: true, rating: 0, reviews_count: 0, badge: null, year: null, price_override: null, category_override: null, updated_at: now });
       added++;
     }
   }
@@ -125,6 +135,13 @@ async function runBonusSync(filePath) {
           bonus_updated_at: now,
         },
       });
+      // Push об обновлении бонусов
+      const { sendPushToUser } = require('../services/pushService');
+      sendPushToUser(db, user._id,
+        '🎁 Бонусный баланс обновлён',
+        `Ваш баланс: ${row.balance} баллов`,
+        { screen: 'loyalty' }
+      ).catch(() => {});
       matched++;
     } else {
       unmatched++;

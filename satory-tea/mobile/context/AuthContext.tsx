@@ -18,6 +18,7 @@ const storage = {
   },
 };
 import { apiFetch } from '../constants/api';
+import { registerPushToken, unregisterPushToken } from '../utils/pushNotifications';
 
 interface User {
   id: number;
@@ -80,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    if (token) unregisterPushToken(token).catch(() => {});
     await storage.removeItem('token');
     setToken(null);
     setUser(null);
@@ -89,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await storage.setItem('token', t);
     setToken(t);
     setUser(u);
+    registerPushToken(t).catch(() => {});
   };
 
   const refreshUser = async () => {

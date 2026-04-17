@@ -16,6 +16,20 @@ router.put('/me', auth, async (req, res) => {
   res.json({ success: true });
 });
 
+// POST /api/user/push-token — сохранить Expo push token
+router.post('/push-token', auth, async (req, res) => {
+  const { push_token } = req.body;
+  if (!push_token) return res.status(400).json({ error: 'push_token обязателен' });
+  await db.users.update({ _id: req.user.id }, { $set: { push_token } });
+  res.json({ success: true });
+});
+
+// DELETE /api/user/push-token — удалить токен при выходе
+router.delete('/push-token', auth, async (req, res) => {
+  await db.users.update({ _id: req.user.id }, { $unset: { push_token: true } });
+  res.json({ success: true });
+});
+
 router.get('/orders', auth, async (req, res) => {
   const orders = await db.orders.find({ user_id: req.user.id });
   res.json(orders);

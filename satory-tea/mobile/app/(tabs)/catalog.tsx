@@ -129,7 +129,11 @@ export default function CatalogScreen() {
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <View style={{ width: CARD_WIDTH }}>
-            <ProductCard item={item} onCart={() => add(item)} />
+            <ProductCard
+              item={item}
+              onPress={() => router.push({ pathname: '/product', params: { id: item._id || item.id } })}
+              onCart={() => add(item)}
+            />
           </View>
         )}
       />

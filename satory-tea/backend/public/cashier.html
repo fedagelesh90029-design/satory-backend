@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Satory — Касса</title>
+  <title>Satori — Касса</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,11 +26,27 @@
     .error-card.visible { display: block; }
     .btn { background: #C9A84C; color: #0a0a0a; border: none; border-radius: 12px; padding: 12px 24px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 16px; width: 100%; }
     .btn:hover { background: #E8C96A; }
+    .btn-outline { background: transparent; color: #C9A84C; border: 1px solid #C9A84C; border-radius: 12px; padding: 12px 24px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; width: 100%; }
+    .btn-outline:hover { background: #C9A84C22; }
     .scanning-hint { color: #555; font-size: 13px; text-align: center; margin-top: 12px; }
+    .accrue-block { margin-top: 20px; border-top: 1px solid #2a2a2a; padding-top: 20px; }
+    .accrue-title { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .accrue-row { display: flex; gap: 10px; align-items: flex-end; }
+    .accrue-input-wrap { flex: 1; }
+    .accrue-input-wrap label { display: block; color: #666; font-size: 12px; margin-bottom: 6px; }
+    .accrue-input { width: 100%; background: #141414; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px 14px; color: #fff; font-size: 16px; outline: none; transition: border-color .15s; }
+    .accrue-input:focus { border-color: #C9A84C; }
+    .btn-accrue { background: #C9A84C; color: #0a0a0a; border: none; border-radius: 10px; padding: 12px 20px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .15s; }
+    .btn-accrue:hover { background: #E8C96A; }
+    .btn-accrue:disabled { opacity: .5; cursor: not-allowed; }
+    .accrue-preview { color: #C9A84C; font-size: 13px; margin-top: 6px; min-height: 18px; }
+    .accrue-result { border-radius: 12px; padding: 14px 16px; margin-top: 12px; font-size: 14px; font-weight: 600; display: none; }
+    .accrue-result.success { background: #4CAF5022; color: #4CAF50; border: 1px solid #4CAF5044; }
+    .accrue-result.error { background: #E5393522; color: #E53935; border: 1px solid #E5393544; }
   </style>
 </head>
 <body>
-  <div class="logo">Satory</div>
+  <div class="logo">Satori</div>
   <div class="subtitle">Терминал кассира — сканирование QR гостя</div>
 
   <div id="reader"></div>
@@ -47,7 +63,25 @@
       <span class="bonus-label">Статус</span>
       <span class="status-badge" id="guestStatus">—</span>
     </div>
-    <button class="btn" onclick="resetScanner()">Сканировать следующего</button>
+
+    <!-- Блок начисления бонусов -->
+    <div class="accrue-block">
+      <div class="accrue-title">Начислить бонусы за покупку</div>
+      <div class="accrue-row">
+        <div class="accrue-input-wrap">
+          <label>Сумма покупки (₽)</label>
+          <input class="accrue-input" type="number" id="purchaseAmount" placeholder="1000" min="0" step="100"
+            oninput="updatePreview()">
+        </div>
+        <button class="btn-accrue" id="accrueBtn" onclick="accrueBonuses()" disabled>
+          Начислить
+        </button>
+      </div>
+      <div class="accrue-preview" id="accruePreview"></div>
+      <div class="accrue-result" id="accrueResult"></div>
+    </div>
+
+    <button class="btn" onclick="resetScanner()" style="margin-top:20px">Сканировать следующего</button>
   </div>
 
   <div class="error-card" id="errorCard">
@@ -58,6 +92,7 @@
   <script>
     let scanner = null;
     let scanning = true;
+    let currentUserId = null;
 
     function startScanner() {
       scanner = new Html5Qrcode('reader');
@@ -96,6 +131,11 @@
         statusEl.textContent = data.loyalty_status || 'Бронза';
         statusEl.className = 'status-badge ' + ({ 'Золото': 'status-gold', 'Серебро': 'status-silver' }[data.loyalty_status] || 'status-bronze');
 
+        currentUserId = data.userId;
+        document.getElementById('accrueResult').style.display = 'none';
+        document.getElementById('purchaseAmount').value = '';
+        document.getElementById('accruePreview').textContent = '';
+        document.getElementById('accrueBtn').disabled = true;
         document.getElementById('guestCard').classList.add('visible');
         document.getElementById('errorCard').classList.remove('visible');
       } catch (e) {
@@ -111,9 +151,79 @@
 
     function resetScanner() {
       scanning = true;
+      currentUserId = null;
       document.getElementById('guestCard').classList.remove('visible');
       document.getElementById('errorCard').classList.remove('visible');
+      document.getElementById('purchaseAmount').value = '';
+      document.getElementById('accruePreview').textContent = '';
+      document.getElementById('accrueResult').style.display = 'none';
+      document.getElementById('accrueBtn').disabled = true;
       if (scanner) scanner.resume();
+    }
+
+    function updatePreview() {
+      const amount = Number(document.getElementById('purchaseAmount').value);
+      const btn = document.getElementById('accrueBtn');
+      const preview = document.getElementById('accruePreview');
+      if (!amount || amount <= 0) {
+        preview.textContent = '';
+        btn.disabled = true;
+        return;
+      }
+      const bonus = Math.floor(amount * 0.03);
+      if (bonus < 1) {
+        preview.textContent = '⚠ Сумма слишком мала (минимум 34 ₽)';
+        preview.style.color = '#E53935';
+        btn.disabled = true;
+      } else {
+        preview.textContent = `+ ${bonus} бонусов будет начислено`;
+        preview.style.color = '#C9A84C';
+        btn.disabled = false;
+      }
+    }
+
+    async function accrueBonuses() {
+      const amount = Number(document.getElementById('purchaseAmount').value);
+      const btn = document.getElementById('accrueBtn');
+      const result = document.getElementById('accrueResult');
+      if (!currentUserId || !amount) return;
+
+      btn.disabled = true;
+      btn.textContent = '...';
+      result.style.display = 'none';
+
+      try {
+        const resp = await fetch('/api/bonus/accrue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, purchaseAmount: amount }),
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          result.textContent = '❌ ' + (data.error || 'Ошибка начисления');
+          result.className = 'accrue-result error';
+        } else {
+          result.textContent = `✅ Начислено ${data.accrued} бонусов! Новый баланс: ${data.newBalance} баллов`;
+          result.className = 'accrue-result success';
+          // Обновляем баланс на странице
+          document.getElementById('guestBonus').textContent = data.newBalance + ' баллов';
+          const statusEl = document.getElementById('guestStatus');
+          statusEl.textContent = data.loyalty_status;
+          statusEl.className = 'status-badge ' + ({ 'Золото': 'status-gold', 'Серебро': 'status-silver' }[data.loyalty_status] || 'status-bronze');
+          // Сбрасываем поле
+          document.getElementById('purchaseAmount').value = '';
+          document.getElementById('accruePreview').textContent = '';
+        }
+        result.style.display = 'block';
+      } catch (e) {
+        result.textContent = '❌ Ошибка соединения с сервером';
+        result.className = 'accrue-result error';
+        result.style.display = 'block';
+      } finally {
+        btn.textContent = 'Начислить';
+        btn.disabled = false;
+      }
     }
 
     startScanner();

@@ -9,6 +9,7 @@ import { Colors } from '../../constants/theme';
 import { apiFetch } from '../../constants/api';
 import { SatoryLogoFull } from '../../components/SatoryLogo';
 import { ProductCard } from '../../components/ProductCard';
+import { Banner } from '../../components/Banner';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +33,10 @@ export default function HomeScreen() {
         <View>
           <Text style={styles.welcome}>ДОБРО ПОЖАЛОВАТЬ В</Text>
           <SatoryLogoFull size={36} />
+          <View style={styles.addressRow}>
+            <Ionicons name="location-outline" size={13} color={Colors.gold} />
+            <Text style={styles.address}>ул. Кирова, 26 · Адлер</Text>
+          </View>
         </View>
         <TouchableOpacity style={styles.leafBtn} onPress={() => router.push('/(tabs)/catalog')}>
           <Ionicons name="leaf-outline" size={20} color={Colors.gold} />
@@ -50,7 +55,8 @@ export default function HomeScreen() {
         <Ionicons name="chevron-forward" size={16} color={Colors.gold} />
       </TouchableOpacity>
 
-      {/* Banner */}
+      {/* Banner — динамический из галереи, если пуст — статичный */}
+      <Banner />
       <ImageBackground
         source={require('../../assets/banner.jpg')}
         style={[styles.banner, { overflow: 'hidden' }]}
@@ -92,8 +98,11 @@ export default function HomeScreen() {
         </View>
         <View style={styles.grid}>
           {featured.slice(0, 4).map(item => (
-            <View key={item.id} style={{ width: (width - 40) / 2 }}>
-              <ProductCard item={item} />
+            <View key={item._id || item.id} style={{ width: (width - 40) / 2 }}>
+              <ProductCard
+                item={item}
+                onPress={() => router.push({ pathname: '/product', params: { id: item._id || item.id } })}
+              />
             </View>
           ))}
         </View>
@@ -108,7 +117,11 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
         {upcoming.length > 0 ? upcoming.map(ev => (
-          <TouchableOpacity key={ev._id || ev.id} style={styles.eventCard} onPress={() => router.push('/(tabs)/events')}>
+          <TouchableOpacity
+            key={ev._id || ev.id}
+            style={styles.eventCard}
+            onPress={() => router.push({ pathname: '/event', params: { id: ev._id || ev.id } })}
+          >
             <View style={styles.eventDate}>
               <Text style={styles.eventDay}>{new Date(ev.date).getDate()}</Text>
               <Text style={styles.eventMonth}>
@@ -120,6 +133,7 @@ export default function HomeScreen() {
               <Text style={styles.eventTitle}>{ev.title}</Text>
               <Text style={styles.eventTime}>⏱ {ev.time_start} — {ev.time_end}</Text>
             </View>
+            <Ionicons name="chevron-forward" size={16} color={Colors.gold} />
           </TouchableOpacity>
         )) : (
           <View style={styles.emptyEvents}>
@@ -140,6 +154,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16,
   },
   welcome: { color: Colors.gray, fontSize: 11, letterSpacing: 2, marginBottom: 4 },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  address: { color: Colors.gold, fontSize: 12, fontStyle: 'italic', letterSpacing: 0.5 },
   leafBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: Colors.card, alignItems: 'center', justifyContent: 'center',

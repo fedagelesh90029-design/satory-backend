@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -40,6 +40,7 @@ export default function ProfileScreen() {
   const accountItems = [
     { icon: 'person-outline',   label: 'Личные данные',        onPress: () => router.push('/personal-data') },
     { icon: 'heart-outline',    label: 'Избранное',            onPress: () => router.push('/favorites') },
+    { icon: 'bag-outline',      label: 'Мои заказы',           onPress: () => router.push('/orders') },
     { icon: 'ribbon-outline',   label: 'Программа лояльности', tag: user.loyalty_status, onPress: () => router.push('/loyalty') },
     { icon: 'gift-outline',     label: 'История бонусов',      onPress: () => router.push('/transactions') },
     { icon: 'qr-code-outline',  label: 'Мой QR-код',          onPress: () => router.push('/qr') },
@@ -108,10 +109,19 @@ export default function ProfileScreen() {
       {/* Logout */}
       <TouchableOpacity
         style={styles.logoutBtn}
-        onPress={() => Alert.alert('Выход', 'Выйти из аккаунта?', [
-          { text: 'Отмена', style: 'cancel' },
-          { text: 'Выйти', style: 'destructive', onPress: logout },
-        ])}
+        onPress={() => {
+          if (Platform.OS === 'web') {
+            if (window.confirm('Выйти из аккаунта?')) {
+              logout();
+              router.replace('/auth');
+            }
+          } else {
+            Alert.alert('Выход', 'Выйти из аккаунта?', [
+              { text: 'Отмена', style: 'cancel' },
+              { text: 'Выйти', style: 'destructive', onPress: () => { logout(); router.replace('/auth'); } },
+            ]);
+          }
+        }}
       >
         <Ionicons name="log-out-outline" size={18} color={Colors.red} />
         <Text style={styles.logoutText}>Выйти из аккаунта</Text>

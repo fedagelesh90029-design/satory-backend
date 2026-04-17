@@ -6,6 +6,7 @@ const dir = path.join(__dirname, 'data');
 const db = {
   users: Datastore.create({ filename: path.join(dir, 'users.db'), autoload: true }),
   products: Datastore.create({ filename: path.join(dir, 'products.db'), autoload: true }),
+  products_meta: Datastore.create({ filename: path.join(dir, 'products_meta.db'), autoload: true }),
   events: Datastore.create({ filename: path.join(dir, 'events.db'), autoload: true }),
   favorites: Datastore.create({ filename: path.join(dir, 'favorites.db'), autoload: true }),
   orders: Datastore.create({ filename: path.join(dir, 'orders.db'), autoload: true }),
@@ -13,6 +14,9 @@ const db = {
   bonus_transactions: Datastore.create({ filename: path.join(dir, 'bonus_transactions.db'), autoload: true }),
   sync_log: Datastore.create({ filename: path.join(dir, 'sync_log.db'), autoload: true }),
   otp_codes: Datastore.create({ filename: path.join(dir, 'otp_codes.db'), autoload: true }),
+  gallery: Datastore.create({ filename: path.join(dir, 'gallery.db'), autoload: true }),
+  categories: Datastore.create({ filename: path.join(dir, 'categories.db'), autoload: true }),
+  app_settings: Datastore.create({ filename: path.join(dir, 'app_settings.db'), autoload: true }),
 };
 
 // Seed products

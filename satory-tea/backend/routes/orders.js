@@ -13,6 +13,8 @@ router.post('/', auth, async (req, res) => {
     status: 'pending',
     created_at: new Date().toISOString(),
   });
+
+  // Push кассиру не нужен — заказ появится в админке
   res.json(order);
 });
 
