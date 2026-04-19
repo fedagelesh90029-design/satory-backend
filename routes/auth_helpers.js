@@ -51,7 +51,11 @@ async function sendSms(phone, message) {
       });
 
       req.on('error', e => { console.error('[mts] Сетевая ошибка:', e.message); resolve(); });
-      req.setTimeout(10000, () => { req.destroy(); resolve(); });
+      req.setTimeout(10000, () => { 
+        console.error('[mts] Таймаут — api.exolve.ru недоступен');
+        req.destroy(); 
+        resolve(); 
+      });
       req.write(body);
       req.end();
     });
