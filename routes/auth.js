@@ -20,7 +20,8 @@ function sendSmsMts(phone, text) {
       return resolve();
     }
 
-    const payload = JSON.stringify({ number: phone, destination: phone, text });
+    const cleanPhone = phone.replace(/^\+/, ''); // МТС ожидает без +
+    const payload = JSON.stringify({ number: cleanPhone, destination: cleanPhone, text });
     const options = {
       hostname: 'api.exolve.ru',
       port: 443,
