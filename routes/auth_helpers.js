@@ -10,12 +10,11 @@ async function sendSms(phone, message) {
   // Документация: https://exolve.ru/docs/
   // Переменные: MTS_API_KEY, MTS_SENDER (имя отправителя, напр. SatoriTea)
   if (provider === 'mts' && process.env.MTS_API_KEY) {
-    const body = JSON.stringify({
-      number: phone,           // +7XXXXXXXXXX
-      destination: phone,
-      text: message,
-      from: process.env.MTS_SENDER || 'SatoriTea',
-    });
+    // from — только если имя отправителя зарегистрировано в Exolve
+    const payload = { number: phone, destination: phone, text: message };
+    if (process.env.MTS_SENDER) payload.from = process.env.MTS_SENDER;
+
+    const body = JSON.stringify(payload);
 
     return new Promise((resolve) => {
       const options = {
