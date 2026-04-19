@@ -2,12 +2,51 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const https = require('https');
 const db = require('../db');
 const { normalizePhone } = require('../services/iikoFileParser');
-const { sendSms } = require('./auth_helpers');
 
 const SECRET = process.env.JWT_SECRET || 'satory_secret_2026';
-const OTP_TTL = 5 * 60 * 1000; // 5 минут
+const OTP_TTL = 5 * 60 * 1000;
+
+// ─── Отправка SMS через МТС Exolve ───────────────────────────────────────────
+function sendSmsMts(phone, text) {
+  return new Promise((resolve) => {
+    const key = (process.env.MTS_API_KEY || '').trim();
+    console.log(`[mts-direct] key=${key ? key.slice(0,8)+'...' : 'НЕТ'}, phone=${phone}`);
+
+    if (!key) {
+      console.log(`[dev] SMS: ${text}`);
+      return resolve();
+    }
+
+    const payload = JSON.stringify({ number: phone, destination: phone, text });
+    const options = {
+      hostname: 'api.exolve.ru',
+      port: 443,
+      path: '/messaging/v1/SendSMS',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let raw = '';
+      res.on('data', d => raw += d);
+      res.on('end', () => {
+        console.log(`[mts-direct] status=${res.statusCode}, body=${raw.slice(0, 200)}`);
+        resolve();
+      });
+    });
+    req.on('error', e => { console.error(`[mts-direct] error: ${e.message}`); resolve(); });
+    req.setTimeout(15000, () => { console.error('[mts-direct] timeout'); req.destroy(); resolve(); });
+    req.write(payload);
+    req.end();
+  });
+}
 
 // ─── POST /api/auth/send-otp ──────────────────────────────────────────────────
 router.post('/send-otp', async (req, res) => {
@@ -28,7 +67,7 @@ router.post('/send-otp', async (req, res) => {
     await db.otp_codes.insert({ phone: normalized, code, expires_at, attempts: 0 });
   }
 
-  await sendSms(normalized, `Ваш код Satori: ${code}`);
+  await sendSmsMts(normalized, `Ваш код Satori: ${code}`);
   res.json({ success: true, phone: normalized, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
 });
 
