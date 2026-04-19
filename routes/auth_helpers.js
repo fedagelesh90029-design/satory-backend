@@ -10,7 +10,10 @@ async function sendSms(phone, message) {
   console.log(`[sms] provider=${provider}, mts_key=${mtsKey ? mtsKey.slice(0,10) + '...' : 'НЕ ЗАДАН'}`);
 
   // ── МТС Exolve (exolve.ru) ────────────────────────────────
-  if (provider === 'mts' && mtsKey) {
+  const cleanMtsKey = mtsKey ? mtsKey.trim() : null;
+  console.log(`[sms] cleanKey=${cleanMtsKey ? 'есть' : 'нет'}, provider_check=${provider === 'mts'}`);
+
+  if (provider === 'mts' && cleanMtsKey) {
     // from — только если имя отправителя зарегистрировано в Exolve
     const payload = { number: phone, destination: phone, text: message };
     if (process.env.MTS_SENDER) payload.from = process.env.MTS_SENDER;
@@ -23,7 +26,7 @@ async function sendSms(phone, message) {
         path: '/messaging/v1/SendSMS',
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${mtsKey}`,
+          'Authorization': `Bearer ${cleanMtsKey}`,
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(body),
         },
