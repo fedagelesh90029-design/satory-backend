@@ -5,11 +5,12 @@ const https = require('https');
 
 async function sendSms(phone, message) {
   const provider = process.env.SMS_PROVIDER;
+  const mtsKey = process.env.MTS_API_KEY;
+
+  console.log(`[sms] provider=${provider}, mts_key=${mtsKey ? mtsKey.slice(0,10) + '...' : 'НЕ ЗАДАН'}`);
 
   // ── МТС Exolve (exolve.ru) ────────────────────────────────
-  // Документация: https://exolve.ru/docs/
-  // Переменные: MTS_API_KEY, MTS_SENDER (имя отправителя, напр. SatoriTea)
-  if (provider === 'mts' && process.env.MTS_API_KEY) {
+  if (provider === 'mts' && mtsKey) {
     // from — только если имя отправителя зарегистрировано в Exolve
     const payload = { number: phone, destination: phone, text: message };
     if (process.env.MTS_SENDER) payload.from = process.env.MTS_SENDER;
@@ -22,7 +23,7 @@ async function sendSms(phone, message) {
         path: '/messaging/v1/SendSMS',
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.MTS_API_KEY}`,
+          'Authorization': `Bearer ${mtsKey}`,
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(body),
         },
