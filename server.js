@@ -1,4 +1,8 @@
-require('dotenv').config();
+// Railway передаёт переменные через process.env напрямую
+// dotenv нужен только для локальной разработки
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
