@@ -1,15 +1,27 @@
 const router = require('express').Router();
 const db = require('../db');
+const jwt = require('jsonwebtoken');
 const { calcLoyaltyStatus, normalizePhone } = require('../services/iikoFileParser');
 const { sendPushToUser } = require('../services/pushService');
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'satory_admin_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'satory_secret_2026';
 
 function adminOnly(req, res, next) {
-  if (req.headers['x-admin-secret'] !== ADMIN_SECRET) {
-    return res.status(403).json({ error: 'Доступ запрещён' });
+  // Способ 1: x-admin-secret (обратная совместимость)
+  if (req.headers['x-admin-secret'] === ADMIN_SECRET) return next();
+
+  // Способ 2: JWT Bearer токен
+  const header = req.headers.authorization;
+  if (header) {
+    const token = header.split(' ')[1];
+    try {
+      const payload = jwt.verify(token, JWT_SECRET);
+      if (payload.is_admin) { req.admin = payload; return next(); }
+    } catch {}
   }
-  next();
+
+  return res.status(403).json({ error: 'Доступ запрещён' });
 }
 
 // POST /api/admin/bonus/adjust
