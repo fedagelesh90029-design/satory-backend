@@ -33,6 +33,8 @@ app.use('/api/admin/upload', require('./routes/adminUpload'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/news', require('./routes/news'));
+app.use('/api/admin/news', require('./routes/adminNews'));
 app.use('/api/sync', require('./routes/sync'));
 app.use('/api/gallery', require('./routes/gallery'));
 app.use('/api/settings', require('./routes/settings'));

@@ -180,6 +180,7 @@ code{background:var(--surface2);border:1px solid var(--border);padding:2px 7px;b
       <div class="logo-sub">Панель управления</div>
     </div>
     <a onclick="showPage('events')"     id="nav-events">События</a>
+    <a onclick="showPage('news')"       id="nav-news">Новости</a>
     <a onclick="showPage('products')"   id="nav-products">Товары</a>
     <a onclick="showPage('gallery')"    id="nav-gallery">Галерея</a>
     <a onclick="showPage('orders')"     id="nav-orders">Заказы</a>
@@ -242,14 +243,15 @@ function logout() { TOKEN=''; localStorage.removeItem('admin_token'); document.g
 function boot() { document.getElementById('login-screen').style.display='none'; document.getElementById('app').style.display='flex'; showPage('events'); }
 
 function showPage(p) {
-  ['events','products','gallery','orders','cashier','settings','sync'].forEach(x => document.getElementById(`nav-${x}`)?.classList.toggle('active', x===p));
-  if (p==='events')     renderEvents();
-  if (p==='products')   renderProducts();
-  if (p==='gallery')    renderGallery();
-  if (p==='orders')     renderOrders();
-  if (p==='cashier')    renderCashier();
-  if (p==='settings')   renderSettings();
-  if (p==='sync')       renderSync();
+  ['events','news','products','gallery','orders','cashier','settings','sync'].forEach(x => document.getElementById(`nav-${x}`)?.classList.toggle('active', x===p));
+  if (p==='events')   renderEvents();
+  if (p==='news')     renderNews();
+  if (p==='products') renderProducts();
+  if (p==='gallery')  renderGallery();
+  if (p==='orders')   renderOrders();
+  if (p==='cashier')  renderCashier();
+  if (p==='settings') renderSettings();
+  if (p==='sync')     renderSync();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1355,6 +1357,118 @@ async function uploadSync(type) {
   const fd=new FormData(); fd.append('file',f);
   const r=await api('POST',`/api/iiko/upload/${type}`,fd,true);
   if(r){toast(`Загружено: ${r.total||0} строк`); await loadSyncStatus();}
+}
+
+// ════════════════════════════════════════════════════════════
+// NEWS
+// ════════════════════════════════════════════════════════════
+
+async function renderNews() {
+  document.getElementById('main').innerHTML = `
+    <div class="page-header">
+      <h1>📰 Новости</h1>
+      <button class="btn btn-primary" onclick="openNewsForm()">+ Добавить</button>
+    </div>
+    <div class="card" id="news-wrap"><p class="empty">Загрузка...</p></div>`;
+  const news = await api('GET', '/api/admin/news'); if (!news) return;
+  renderNewsTable(news);
+}
+
+function renderNewsTable(news) {
+  const w = document.getElementById('news-wrap');
+  if (!news.length) { w.innerHTML = '<p class="empty">Новостей пока нет</p>'; return; }
+  w.innerHTML = `<table>
+    <thead><tr><th>Заголовок</th><th>Статус</th><th>Push</th><th>Дата</th><th></th></tr></thead>
+    <tbody>${news.map(n => `<tr>
+      <td><strong>${n.title}</strong></td>
+      <td>
+        <span class="badge ${n.is_published ? 'badge-green' : 'badge-orange'}">${n.is_published ? 'Опубликовано' : 'Черновик'}</span>
+        ${n.scheduled_publish_time && !n.is_published ? `<br><span style="font-size:11px;color:var(--muted)">⏰ ${fmtDate(n.scheduled_publish_time)}</span>` : ''}
+      </td>
+      <td>
+        ${n.push_sent ? '<span class="badge badge-blue">Отправлен</span>' : n.scheduled_push_time ? `<span class="badge badge-orange">⏰ ${fmtDate(n.scheduled_push_time)}</span>` : '—'}
+      </td>
+      <td style="font-size:12px;color:var(--muted)">${fmtDate(n.created_at)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openNewsForm('${n._id}')">✏️</button>
+        ${!n.is_published ? `<button class="btn btn-success btn-sm" onclick="publishNewsNow('${n._id}')">▶ Опубликовать</button>` : ''}
+        <button class="btn btn-primary btn-sm" onclick="sendNewsPushNow('${n._id}')">📱 Push</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteNews('${n._id}')">🗑️</button>
+      </td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function openNewsForm(id = '') {
+  const news = window._newsCache || [];
+  const n = news.find(x => x._id === id) || {};
+  openModal(`<div class="modal" style="width:660px">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h3>${id ? 'Редактировать' : 'Новая'} новость</h3>
+    <div class="form-group"><label>Заголовок *</label><input id="nf-title" value="${n.title || ''}"></div>
+    <div class="form-group"><label>Текст</label><textarea id="nf-desc" rows="5">${n.description || ''}</textarea></div>
+    <div class="form-group"><label>Изображение (URL)</label><input id="nf-img" value="${n.image_url || ''}"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Статус</label>
+        <select id="nf-published">
+          <option value="true" ${n.is_published !== false ? 'selected' : ''}>Опубликовано</option>
+          <option value="false" ${n.is_published === false ? 'selected' : ''}>Черновик</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Отложенная публикация</label>
+        <input id="nf-pub-time" type="datetime-local" value="${n.scheduled_publish_time ? n.scheduled_publish_time.slice(0,16) : ''}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Push-уведомление</label>
+        <input id="nf-push" placeholder="Текст push (оставьте пустым — без push)" value="${n.push_template || ''}">
+      </div>
+      <div class="form-group"><label>Время push</label>
+        <input id="nf-push-time" type="datetime-local" value="${n.scheduled_push_time ? n.scheduled_push_time.slice(0,16) : ''}">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveNews('${id}')">💾 Сохранить</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
+    </div>
+  </div>`);
+}
+
+async function saveNews(id) {
+  const title = document.getElementById('nf-title').value.trim();
+  if (!title) { toast('Введите заголовок', 'err'); return; }
+  const pubTime = document.getElementById('nf-pub-time').value;
+  const pushTime = document.getElementById('nf-push-time').value;
+  const isPublished = document.getElementById('nf-published').value === 'true';
+
+  const body = {
+    title,
+    description: document.getElementById('nf-desc').value,
+    image_url: document.getElementById('nf-img').value,
+    is_published: pubTime ? false : isPublished,
+    auto_publish: !!pubTime,
+    scheduled_publish_time: pubTime ? new Date(pubTime).toISOString() : null,
+    push_template: document.getElementById('nf-push').value.trim(),
+    scheduled_push_time: pushTime ? new Date(pushTime).toISOString() : null,
+  };
+
+  const r = id ? await api('PUT', `/api/admin/news/${id}`, body) : await api('POST', '/api/admin/news', body);
+  if (r) { closeModal(); toast(id ? 'Обновлено' : 'Создано'); renderNews(); }
+}
+
+async function publishNewsNow(id) {
+  const r = await api('POST', `/api/admin/news/${id}/publish-now`);
+  if (r) { toast('Опубликовано'); renderNews(); }
+}
+
+async function sendNewsPushNow(id) {
+  const r = await api('POST', `/api/admin/news/${id}/send-push-now`);
+  if (r) { toast('Push отправлен'); renderNews(); }
+}
+
+async function deleteNews(id) {
+  if (!confirm('Удалить новость?')) return;
+  const r = await api('DELETE', `/api/admin/news/${id}`);
+  if (r) { toast('Удалено'); renderNews(); }
 }
 
 // ════════════════════════════════════════════════════════════

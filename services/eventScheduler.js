@@ -48,10 +48,22 @@ class EventScheduler {
 
       for (const event of pushEvents) {
         const pushTime = new Date(event.scheduled_push_time);
-        
-        // Если время пришло (с погрешностью в 1 минуту)
         if (pushTime <= now) {
-          await this.sendScheduledPush(event);
+          await this.sendScheduledPush(event, 'events');
+        }
+      }
+
+      // 1b. Проверяем новости с запланированными push
+      const pushNews = await db.news.find({
+        scheduled_push_time: { $exists: true, $ne: null },
+        push_sent: { $ne: true },
+        is_active: { $ne: false }
+      });
+
+      for (const item of pushNews) {
+        const pushTime = new Date(item.scheduled_push_time);
+        if (pushTime <= now) {
+          await this.sendScheduledPush(item, 'news');
         }
       }
 
@@ -64,10 +76,29 @@ class EventScheduler {
 
       for (const event of publishEvents) {
         const publishTime = new Date(event.scheduled_publish_time);
-        
-        // Если время пришло (с погрешностью в 1 минуту)
         if (publishTime <= now) {
           await this.publishScheduledEvent(event);
+        }
+      }
+
+      // 2b. Проверяем новости с запланированной публикацией
+      const publishNews = await db.news.find({
+        scheduled_publish_time: { $exists: true, $ne: null },
+        is_published: { $ne: true },
+        auto_publish: true
+      });
+
+      for (const item of publishNews) {
+        const publishTime = new Date(item.scheduled_publish_time);
+        if (publishTime <= now) {
+          await db.news.update({ _id: item._id }, {
+            $set: { is_published: true, scheduled_publish_time: null, auto_publish: false, published_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+          });
+          console.log(`[scheduler] Новость "${item.title}" опубликована`);
+          // Push при публикации если есть шаблон
+          if (item.push_template && !item.push_sent) {
+            await this.sendScheduledPush(item, 'news');
+          }
         }
       }
     } catch (error) {
@@ -75,28 +106,32 @@ class EventScheduler {
     }
   }
 
-  async sendScheduledPush(event) {
+  async sendScheduledPush(event, type = 'events') {
     try {
-      console.log(`[scheduler] Отправка запланированного push для события: ${event.title}`);
+      const isNews = type === 'news';
+      const defaultTemplate = isNews
+        ? `📰 Новость: "${event.title}"`
+        : `🍵 Напоминание о событии "${event.title}"`;
+      const title = isNews ? '📰 Satori Tea' : '🍵 Satori Tea';
+      const screen = isNews ? 'news' : 'event';
+
+      console.log(`[scheduler] Отправка push для ${isNews ? 'новости' : 'события'}: ${event.title}`);
       
-      const template = event.push_template || `🍵 Напоминание о событии "${event.title}"`;
+      const template = event.push_template || defaultTemplate;
       const target = event.push_target || 'all';
       let sentCount = 0;
 
       if (target === 'all') {
-        // Отправить всем пользователям
         const users = await db.users.find({ push_token: { $exists: true } });
         const tokens = users
           .filter(u => u.push_token && u.push_settings?.push_events !== false)
           .map(u => u.push_token);
         
         if (tokens.length) {
-          await broadcastPush(db, '🍵 Satori Tea', template, 
-            { screen: 'event', id: event._id }, 'push_events');
+          await broadcastPush(db, title, template, { screen, id: event._id }, 'push_events');
           sentCount = tokens.length;
         }
-      } else if (target === 'registered') {
-        // Отправить только зарегистрированным на событие
+      } else if (target === 'registered' && !isNews) {
         const registrations = await db.registrations.find({ event_id: event._id });
         const userIds = registrations.map(r => r.user_id);
         
@@ -133,7 +168,8 @@ class EventScheduler {
       }
 
       // Помечаем как отправленное
-      await db.events.update({ _id: event._id }, {
+      const collection = type === 'news' ? db.news : db.events;
+      await collection.update({ _id: event._id }, {
         $set: {
           push_sent: true,
           last_push_sent: new Date().toISOString(),
@@ -142,7 +178,7 @@ class EventScheduler {
         }
       });
 
-      console.log(`[scheduler] Push отправлен ${sentCount} пользователям для события: ${event.title}`);
+      console.log(`[scheduler] Push отправлен ${sentCount} пользователям для ${type === 'news' ? 'новости' : 'события'}: ${event.title}`);
     } catch (error) {
       console.error(`[scheduler] Ошибка отправки push для события ${event.title}:`, error);
     }
