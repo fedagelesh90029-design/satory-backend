@@ -181,7 +181,6 @@ code{background:var(--surface2);border:1px solid var(--border);padding:2px 7px;b
     </div>
     <a onclick="showPage('events')"     id="nav-events">События</a>
     <a onclick="showPage('products')"   id="nav-products">Товары</a>
-    <a onclick="showPage('categories')" id="nav-categories">Категории</a>
     <a onclick="showPage('gallery')"    id="nav-gallery">Галерея</a>
     <a onclick="showPage('orders')"     id="nav-orders">Заказы</a>
     <a onclick="showPage('cashier')"    id="nav-cashier">Касса</a>
@@ -243,10 +242,9 @@ function logout() { TOKEN=''; localStorage.removeItem('admin_token'); document.g
 function boot() { document.getElementById('login-screen').style.display='none'; document.getElementById('app').style.display='flex'; showPage('events'); }
 
 function showPage(p) {
-  ['events','products','categories','gallery','orders','cashier','settings','sync'].forEach(x => document.getElementById(`nav-${x}`)?.classList.toggle('active', x===p));
+  ['events','products','gallery','orders','cashier','settings','sync'].forEach(x => document.getElementById(`nav-${x}`)?.classList.toggle('active', x===p));
   if (p==='events')     renderEvents();
   if (p==='products')   renderProducts();
-  if (p==='categories') renderCategories();
   if (p==='gallery')    renderGallery();
   if (p==='orders')     renderOrders();
   if (p==='cashier')    renderCashier();
@@ -1288,7 +1286,7 @@ function fmtDate(d) { return d ? new Date(d).toLocaleString('ru-RU',{day:'2-digi
 
 async function changeOrderStatus(id, status) {
   const r = await api('PUT',`/api/admin/orders/${id}/status`,{status});
-  if(r) toast('Статус обновлён');
+  if(r) { toast('Статус обновлён'); renderOrders(); }
 }
 
 // ════════════════════════════════════════════════════════════
