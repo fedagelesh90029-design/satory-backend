@@ -10,6 +10,7 @@ import { apiFetch, MEDIA_BASE } from '../../constants/api';
 
 const { width } = Dimensions.get('window');
 
+// ─── Карточка мероприятия ─────────────────────────────────────────────────────
 function EventCard({ event, onPress }: { event: any; onPress: () => void }) {
   const imageUri = event.image_url
     ? event.image_url.startsWith('http') ? event.image_url : `${MEDIA_BASE}${event.image_url}`
@@ -23,7 +24,6 @@ function EventCard({ event, onPress }: { event: any; onPress: () => void }) {
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
-      {/* Фото */}
       <View style={styles.cardImg}>
         {imageUri
           ? <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
@@ -31,20 +31,16 @@ function EventCard({ event, onPress }: { event: any; onPress: () => void }) {
               <Text style={{ fontSize: 40 }}>🍵</Text>
             </View>
         }
-        {/* Дата-бейдж */}
         <View style={styles.dateBadge}>
           <Text style={styles.dateDay}>{day}</Text>
           <Text style={styles.dateMonth}>{month}</Text>
         </View>
-        {/* Бейдж мест */}
         {isFull && (
           <View style={styles.fullBadge}>
             <Text style={styles.fullBadgeText}>Мест нет</Text>
           </View>
         )}
       </View>
-
-      {/* Инфо */}
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle} numberOfLines={2}>{event.title}</Text>
         {event.description ? (
@@ -70,16 +66,57 @@ function EventCard({ event, onPress }: { event: any; onPress: () => void }) {
   );
 }
 
+// ─── Карточка новости ─────────────────────────────────────────────────────────
+function NewsCard({ item, onPress }: { item: any; onPress: () => void }) {
+  const imageUri = item.image_url
+    ? item.image_url.startsWith('http') ? item.image_url : `${MEDIA_BASE}${item.image_url}`
+    : null;
+
+  const date = new Date(item.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
+      {imageUri && (
+        <View style={styles.cardImg}>
+          <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        </View>
+      )}
+      <View style={styles.cardBody}>
+        <Text style={styles.newsDate}>{date}</Text>
+        <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+        {item.description ? (
+          <Text style={styles.cardDesc} numberOfLines={3}>
+            {item.description.replace(/<[^>]+>/g, '')}
+          </Text>
+        ) : null}
+        <View style={styles.cardFooter}>
+          <Text style={[styles.cardPrice, { color: Colors.gold }]}>Читать</Text>
+          <View style={styles.cardArrow}>
+            <Ionicons name="chevron-forward" size={16} color={Colors.gold} />
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Главный экран ────────────────────────────────────────────────────────────
 export default function EventsScreen() {
   const router = useRouter();
-  const [events, setEvents]       = useState<any[]>([]);
+  const [tab, setTab] = useState<'events' | 'news'>('events');
+  const [events, setEvents] = useState<any[]>([]);
+  const [news, setNews]     = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const data = await apiFetch('/events');
-      setEvents(data);
+      const [evData, newsData] = await Promise.all([
+        apiFetch('/events'),
+        apiFetch('/news'),
+      ]);
+      setEvents(evData);
+      setNews(newsData);
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -88,55 +125,68 @@ export default function EventsScreen() {
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
+  const data = tab === 'events' ? events : news;
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Мероприятия</Text>
-        <Text style={styles.subtitle}>Церемонии, мастер-классы, дегустации</Text>
+        {/* Вкладки */}
+        <View style={styles.tabs}>
+          <TouchableOpacity
+            style={[styles.tab, tab === 'events' && styles.tabActive]}
+            onPress={() => setTab('events')}
+          >
+            <Text style={[styles.tabText, tab === 'events' && styles.tabTextActive]}>Мероприятия</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, tab === 'news' && styles.tabActive]}
+            onPress={() => setTab('news')}
+          >
+            <Text style={[styles.tabText, tab === 'news' && styles.tabTextActive]}>Новости</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
         <View style={styles.center}>
           <Text style={{ color: Colors.gray }}>Загрузка...</Text>
         </View>
-      ) : events.length === 0 ? (
+      ) : data.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.iconBox}>
-            <Text style={styles.iconEmoji}>🍵</Text>
+            <Text style={styles.iconEmoji}>{tab === 'events' ? '🍵' : '📰'}</Text>
           </View>
-          <Text style={styles.emptyTitle}>Скоро здесь появятся события</Text>
-          <Text style={styles.emptyText}>
-            Мы готовим расписание чайных церемоний, дегустаций пуэров и мастер-классов по гунфу-ча.
+          <Text style={styles.emptyTitle}>
+            {tab === 'events' ? 'Скоро здесь появятся события' : 'Новостей пока нет'}
           </Text>
-          <View style={styles.teaser}>
-            {[
-              { icon: 'cafe-outline',   text: 'Дегустации пуэров' },
-              { icon: 'school-outline', text: 'Мастер-классы гунфу-ча' },
-              { icon: 'ribbon-outline', text: 'Чайные церемонии' },
-            ].map((item, i) => (
-              <View key={i} style={styles.teaserRow}>
-                <View style={styles.teaserIcon}>
-                  <Ionicons name={item.icon as any} size={18} color={Colors.gold} />
-                </View>
-                <Text style={styles.teaserText}>{item.text}</Text>
-              </View>
-            ))}
-          </View>
+          <Text style={styles.emptyText}>
+            {tab === 'events'
+              ? 'Мы готовим расписание чайных церемоний, дегустаций и мастер-классов.'
+              : 'Следите за обновлениями — скоро здесь появятся новости.'}
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={events}
+          data={data}
           keyExtractor={e => e._id || e.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />}
-          renderItem={({ item }) => (
-            <EventCard
-              event={item}
-              onPress={() => router.push({ pathname: '/event', params: { id: item._id || item.id } })}
-            />
-          )}
+          renderItem={({ item }) =>
+            tab === 'events' ? (
+              <EventCard
+                event={item}
+                onPress={() => router.push({ pathname: '/event', params: { id: item._id } })}
+              />
+            ) : (
+              <NewsCard
+                item={item}
+                onPress={() => router.push({ pathname: '/news', params: { id: item._id } })}
+              />
+            )
+          }
         />
       )}
     </View>
@@ -145,11 +195,18 @@ export default function EventsScreen() {
 
 const styles = StyleSheet.create({
   container:  { flex: 1, backgroundColor: Colors.bg },
-  header:     { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
-  title:      { color: Colors.white, fontSize: 28, fontWeight: '700', marginBottom: 4 },
-  subtitle:   { color: Colors.gray, fontSize: 13 },
+  header:     { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 8 },
+  title:      { color: Colors.white, fontSize: 28, fontWeight: '700', marginBottom: 12 },
+
+  // Вкладки
+  tabs:       { flexDirection: 'row', backgroundColor: Colors.card, borderRadius: 12, padding: 4, gap: 4 },
+  tab:        { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
+  tabActive:  { backgroundColor: Colors.gold },
+  tabText:    { color: Colors.gray, fontSize: 14, fontWeight: '600' },
+  tabTextActive: { color: Colors.bg },
+
   center:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list:       { paddingHorizontal: 16, paddingBottom: 100, gap: 12 },
+  list:       { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 100, gap: 12 },
 
   // Card
   card:       { backgroundColor: Colors.card, borderRadius: 18, overflow: 'hidden' },
@@ -167,15 +224,12 @@ const styles = StyleSheet.create({
   cardPrice:  { color: Colors.gold, fontSize: 15, fontWeight: '700', flex: 1 },
   cardSeats:  { color: Colors.gray, fontSize: 12 },
   cardArrow:  { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.gold + '22', alignItems: 'center', justifyContent: 'center' },
+  newsDate:   { color: Colors.gray, fontSize: 12, marginBottom: 4 },
 
-  // Empty state
+  // Empty
   empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 16 },
   iconBox:    { width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.gold + '22', borderWidth: 1, borderColor: Colors.gold + '44', alignItems: 'center', justifyContent: 'center' },
   iconEmoji:  { fontSize: 36 },
   emptyTitle: { color: Colors.white, fontSize: 18, fontWeight: '700', textAlign: 'center' },
   emptyText:  { color: Colors.gray, fontSize: 13, textAlign: 'center', lineHeight: 20 },
-  teaser:     { backgroundColor: Colors.card, borderRadius: 16, padding: 16, width: '100%', gap: 12, marginTop: 8 },
-  teaserRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  teaserIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.gold + '22', alignItems: 'center', justifyContent: 'center' },
-  teaserText: { color: Colors.grayLight, fontSize: 14 },
 });

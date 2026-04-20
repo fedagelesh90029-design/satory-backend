@@ -6,9 +6,9 @@ import { Colors } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 
 const LEVELS = [
-  { name: 'Бронза',  min: 0,    max: 499,  color: '#CD7F32', perks: ['Накопление бонусов 5%', 'Доступ к каталогу', 'История операций'] },
-  { name: 'Серебро', min: 500,  max: 999,  color: '#C0C0C0', perks: ['Накопление бонусов 7%', 'Приоритетная запись на события', 'Скидка 5% на посуду'] },
-  { name: 'Золото',  min: 1000, max: null, color: '#C9A84C', perks: ['Накопление бонусов 10%', 'Закрытые дегустации', 'Скидка 10% на всё', 'Персональный советник'] },
+  { name: 'Бронза',  min: 0,    max: 499,  color: '#CD7F32', perks: ['Скидка 3% на все покупки', 'Доступ к каталогу', 'История операций'] },
+  { name: 'Серебро', min: 500,  max: 999,  color: '#C0C0C0', perks: ['Скидка 5% на все покупки', 'Приоритетная запись на события', ''] },
+  { name: 'Золото',  min: 1000, max: null, color: '#C9A84C', perks: ['Закрытые дегустации', 'Скидка 10% на всё', ''] },
 ];
 
 export default function LoyaltyScreen() {
@@ -57,7 +57,7 @@ export default function LoyaltyScreen() {
         {/* Привилегии текущего уровня */}
         <Text style={styles.section}>ВАШИ ПРИВИЛЕГИИ</Text>
         <View style={styles.card}>
-          {currentLevel.perks.map((perk, i) => (
+          {currentLevel.perks.filter(p => p).map((perk, i) => (
             <View key={i} style={[styles.perkRow, i > 0 && { borderTopWidth: 1, borderTopColor: Colors.border }]}>
               <Ionicons name="checkmark-circle" size={18} color={Colors.green} />
               <Text style={styles.perkText}>{perk}</Text>
@@ -87,7 +87,7 @@ export default function LoyaltyScreen() {
                 )}
               </View>
               {level.perks.map((p, j) => (
-                <Text key={j} style={styles.levelPerk}>• {p}</Text>
+                <Text key={j} style={[styles.levelPerk, !p && { opacity: 0 }]}>• {p || '—'}</Text>
               ))}
             </View>
           );

@@ -6,17 +6,30 @@
     "orientation": "portrait",
     "scheme": "satory",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/logo.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0A"
+    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.satory.tea"
+      "bundleIdentifier": "com.satory.tea",
+      "icon": "./assets/logo.png"
     },
     "android": {
-      "package": "com.satory.tea"
+      "package": "com.satory.tea",
+      "icon": "./assets/logo.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#0A0A0A"
+      }
     },
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      "expo-splash-screen"
     ],
     "web": {
       "bundler": "metro",
