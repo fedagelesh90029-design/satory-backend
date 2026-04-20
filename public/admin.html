@@ -1121,6 +1121,113 @@ async function saveManual() {
 }
 
 // ════════════════════════════════════════════════════════════
+// USERS SEARCH (Касса)
+// ════════════════════════════════════════════════════════════
+
+let _searchTimer = null;
+
+function searchUsers(q) {
+  clearTimeout(_searchTimer);
+  if (!q.trim()) { document.getElementById('users-list').innerHTML = ''; return; }
+  _searchTimer = setTimeout(() => loadUsers(q), 300);
+}
+
+async function loadAllUsers() {
+  document.getElementById('user-search-input').value = '';
+  await loadUsers('');
+}
+
+async function loadUsers(q) {
+  const list = document.getElementById('users-list');
+  if (!list) return;
+  list.innerHTML = '<p style="color:var(--muted);font-size:13px">Загрузка...</p>';
+  const url = q ? `/api/admin/users?q=${encodeURIComponent(q)}` : '/api/admin/users';
+  const users = await api('GET', url);
+  if (!users) return;
+  if (!users.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">Гостей не найдено</p>'; return; }
+  
+  const statusColors = { 'Золото': '#C9A84C', 'Серебро': '#C0C0C0', 'Бронза': '#CD7F32' };
+  list.innerHTML = `<table style="font-size:13px">
+    <thead><tr><th>Имя</th><th>Телефон</th><th>Баланс</th><th>Статус</th><th></th></tr></thead>
+    <tbody>${users.map(u => `<tr>
+      <td><strong>${u.name}</strong></td>
+      <td style="font-family:monospace">${u.phone}</td>
+      <td style="color:var(--gold);font-weight:700">${u.bonus_balance} ₽</td>
+      <td><span style="color:${statusColors[u.loyalty_status]||'#CD7F32'}">${u.loyalty_status}</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openUserCard('${u._id}')">Открыть</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function openUserCard(id) {
+  const u = await api('GET', `/api/admin/users/${id}`);
+  if (!u) return;
+  const statusColors = { 'Золото': '#C9A84C', 'Серебро': '#C0C0C0', 'Бронза': '#CD7F32' };
+  openModal(`<div class="modal" style="width:560px">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h3>👤 ${u.name || 'Гость'}</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0">
+      <div style="background:var(--surface2);border-radius:10px;padding:14px">
+        <div style="color:var(--muted);font-size:11px;margin-bottom:4px">ТЕЛЕФОН</div>
+        <div style="font-family:monospace;font-size:15px">${u.phone}</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px">
+        <div style="color:var(--muted);font-size:11px;margin-bottom:4px">БОНУСЫ</div>
+        <div style="color:var(--gold);font-size:18px;font-weight:700">${u.bonus_balance ?? 0} баллов</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px">
+        <div style="color:var(--muted);font-size:11px;margin-bottom:4px">СТАТУС</div>
+        <div style="color:${statusColors[u.loyalty_status]||'#CD7F32'};font-weight:700">${u.loyalty_status || 'Бронза'}</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px">
+        <div style="color:var(--muted);font-size:11px;margin-bottom:4px">ЗАКАЗОВ</div>
+        <div style="font-size:15px;font-weight:700">${u.orders_count} на ${Number(u.orders_total).toLocaleString('ru')} ₽</div>
+      </div>
+    </div>
+    ${u.transactions?.length ? `
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase">История бонусов</div>
+    <div style="max-height:200px;overflow-y:auto">
+      <table style="font-size:12px;width:100%">
+        <thead><tr><th>Дата</th><th>Операция</th><th>Начислено</th><th>Списано</th><th>Баланс</th></tr></thead>
+        <tbody>${u.transactions.map(t => `<tr>
+          <td style="color:var(--muted)">${new Date(t.created_at).toLocaleDateString('ru')}</td>
+          <td>${t.description || t.operation_type}</td>
+          <td style="color:#4CAF50">${t.accrued > 0 ? '+'+t.accrued : '—'}</td>
+          <td style="color:#E53935">${t.spent > 0 ? '-'+t.spent : '—'}</td>
+          <td style="font-weight:700">${t.balance}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : '<p style="color:var(--muted);font-size:13px">Транзакций нет</p>'}
+    <div style="margin-top:16px;display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="closeModal();openBonusAdjust('${u.phone}','${u.name||''}')">✏️ Изменить бонусы</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Закрыть</button>
+    </div>
+  </div>`);
+}
+
+function openBonusAdjust(phone, name) {
+  openModal(`<div class="modal" style="width:420px">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h3>Изменить бонусы — ${name || phone}</h3>
+    <div class="form-group"><label>Сумма (+ начислить, - списать)</label>
+      <input id="ba-delta" type="number" placeholder="Например: 100 или -50"></div>
+    <div class="form-group"><label>Комментарий</label>
+      <input id="ba-comment" placeholder="Причина изменения"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveBonusAdjust('${phone}')">Сохранить</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
+    </div>
+  </div>`);
+}
+
+async function saveBonusAdjust(phone) {
+  const delta = Number(document.getElementById('ba-delta').value);
+  const comment = document.getElementById('ba-comment').value;
+  if (!delta) { toast('Введите сумму', 'err'); return; }
+  const r = await api('POST', '/api/admin/bonus/adjust', { phone, delta, comment });
+  if (r) { closeModal(); toast(`Баланс обновлён: ${r.new_balance} баллов`); }
+}
+
+// ════════════════════════════════════════════════════════════
 // GALLERY
 // ════════════════════════════════════════════════════════════
 let _gallery = [];
@@ -1299,6 +1406,18 @@ let _currentUserId = null;
 function renderCashier() {
   document.getElementById('main').innerHTML = `
     <div class="page-header"><h1>Касса</h1></div>
+
+    <!-- Поиск пользователей -->
+    <div class="card" style="padding:14px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">🔍 Поиск гостя</div>
+      <div style="display:flex;gap:10px">
+        <input id="user-search-input" type="text" placeholder="Телефон или имя гостя..."
+          style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;color:var(--text);font-size:14px;outline:none"
+          oninput="searchUsers(this.value)">
+        <button class="btn btn-ghost btn-sm" onclick="loadAllUsers()">Все гости</button>
+      </div>
+      <div id="users-list" style="margin-top:12px"></div>
+    </div>
 
     <!-- Поле для USB-сканера (перехватывает ввод автоматически) -->
     <div class="card" style="padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
