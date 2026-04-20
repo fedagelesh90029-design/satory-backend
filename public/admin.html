@@ -1496,11 +1496,21 @@ function initUsbScanner() {
   // Автофокус на поле — сканер сразу пишет в него
   input.focus();
 
-  // Возвращаем фокус если кликнули куда-то ещё
+  // Возвращаем фокус на USB только если клик НЕ в зоне поиска/таблицы/модалки
   document.addEventListener('click', (e) => {
     const purchaseInput = document.getElementById('purchase-amount');
     const accrueBtn = document.getElementById('accrue-btn');
-    if (e.target !== purchaseInput && e.target !== accrueBtn && e.target !== input) {
+    const searchInput = document.getElementById('user-search-input');
+    const usersList = document.getElementById('users-list');
+    const modalOverlay = document.querySelector('.modal-overlay');
+
+    // Не перехватываем фокус если клик в поиске, таблице пользователей или модалке
+    const inSearch = searchInput && (e.target === searchInput || searchInput.contains(e.target));
+    const inList = usersList && usersList.contains(e.target);
+    const inModal = modalOverlay && modalOverlay.contains(e.target);
+    const inForm = e.target === purchaseInput || e.target === accrueBtn || e.target === input;
+
+    if (!inSearch && !inList && !inModal && !inForm) {
       input?.focus();
     }
   });
