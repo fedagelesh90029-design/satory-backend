@@ -54,6 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const data = await apiFetch('/user/me', {}, t);
           setUser(data);
+          // Регистрируем push токен при каждом запуске
+          registerPushToken(t).catch(() => {});
         } catch {
           await storage.removeItem('token');
         }
