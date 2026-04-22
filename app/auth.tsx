@@ -28,6 +28,7 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [showEmail, setShowEmail] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
 
   const otpRefs = useRef<(TextInput | null)[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -63,7 +64,8 @@ export default function AuthScreen() {
     if (digits.length < 10) { Alert.alert('Ошибка', 'Введите корректный номер телефона'); return; }
     setLoading(true);
     try {
-      await apiFetch('/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone }) });
+      const resp = await apiFetch('/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone }) });
+      setDevCode(resp.dev_code || null);
       setMode('otp');
       startCountdown();
     } catch (e: any) {
@@ -210,6 +212,13 @@ export default function AuthScreen() {
 
         <Text style={styles.heading}>Введите код</Text>
         <Text style={styles.sub}>Отправили SMS на {phone}</Text>
+
+        {devCode && (
+          <View style={{ backgroundColor: Colors.card, borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: Colors.gold + '44' }}>
+            <Text style={{ color: Colors.gray, fontSize: 12, textAlign: 'center', marginBottom: 4 }}>Код подтверждения</Text>
+            <Text style={{ color: Colors.gold, fontSize: 28, fontWeight: '800', textAlign: 'center', letterSpacing: 6 }}>{devCode}</Text>
+          </View>
+        )}
 
         <View style={styles.otpRow}>
           {otp.map((digit, i) => (
