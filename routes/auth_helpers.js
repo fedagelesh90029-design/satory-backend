@@ -5,58 +5,37 @@ const https = require('https');
 
 async function sendSms(phone, message) {
   const provider = process.env.SMS_PROVIDER;
-  const mtsKey = process.env.MTS_API_KEY;
 
-  console.log(`[sms] provider=${provider}, mts_key=${mtsKey ? mtsKey.slice(0,10) + '...' : 'НЕ ЗАДАН'}`);
+  // ── МТС Exolve ────────────────────────────────────────────
+  if (provider === 'mts' && process.env.MTS_API_KEY) {
+    const key = process.env.MTS_API_KEY.trim();
+    const sender = (process.env.MTS_SENDER || '').replace(/^\+/, '');
+    const cleanPhone = phone.replace(/^\+/, '');
+    if (!sender) { console.log(`[dev] SMS (нет MTS_SENDER): ${message}`); return; }
 
-  // ── МТС Exolve (exolve.ru) ────────────────────────────────
-  const cleanMtsKey = mtsKey ? mtsKey.trim() : null;
-  console.log(`[sms] cleanKey=${cleanMtsKey ? 'есть' : 'нет'}, provider_check=${provider === 'mts'}`);
-
-  if (provider === 'mts' && cleanMtsKey) {
-    // from — только если имя отправителя зарегистрировано в Exolve
-    const payload = { number: phone, destination: phone, text: message };
-    if (process.env.MTS_SENDER) payload.from = process.env.MTS_SENDER;
-
-    const body = JSON.stringify(payload);
-
+    const payload = JSON.stringify({ number: sender, destination: cleanPhone, text: message });
     return new Promise((resolve) => {
       const options = {
         hostname: 'api.exolve.ru',
         path: '/messaging/v1/SendSMS',
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${cleanMtsKey}`,
+          'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
+          'Content-Length': Buffer.byteLength(payload),
         },
       };
-
       const req = https.request(options, (res) => {
         let raw = '';
         res.on('data', d => (raw += d));
         res.on('end', () => {
-          try {
-            const data = JSON.parse(raw);
-            if (res.statusCode === 200) {
-              console.log(`[mts] SMS отправлено на ${phone}, id: ${data.message_id || '—'}`);
-            } else {
-              console.error(`[mts] Ошибка ${res.statusCode}:`, data);
-            }
-          } catch {
-            console.error('[mts] Ошибка парсинга:', raw);
-          }
+          console.log(`[mts] status=${res.statusCode}, body=${raw.slice(0, 200)}`);
           resolve();
         });
       });
-
-      req.on('error', e => { console.error('[mts] Сетевая ошибка:', e.message); resolve(); });
-      req.setTimeout(10000, () => { 
-        console.error('[mts] Таймаут — api.exolve.ru недоступен');
-        req.destroy(); 
-        resolve(); 
-      });
-      req.write(body);
+      req.on('error', e => { console.error('[mts] error:', e.message); resolve(); });
+      req.setTimeout(15000, () => { console.error('[mts] timeout'); req.destroy(); resolve(); });
+      req.write(payload);
       req.end();
     });
   }
@@ -64,12 +43,8 @@ async function sendSms(phone, message) {
   // ── SMSC.ru ───────────────────────────────────────────────
   if (provider === 'smsc' && process.env.SMSC_LOGIN && process.env.SMSC_PASSWORD) {
     const params = new URLSearchParams({
-      login:   process.env.SMSC_LOGIN,
-      psw:     process.env.SMSC_PASSWORD,
-      phones:  phone,
-      mes:     message,
-      fmt:     '3', // JSON ответ
-      charset: 'utf-8',
+      login: process.env.SMSC_LOGIN, psw: process.env.SMSC_PASSWORD,
+      phones: phone, mes: message, fmt: '3', charset: 'utf-8',
     });
     const url = `https://smsc.ru/sys/send.php?${params.toString()}`;
     return new Promise((resolve) => {
@@ -85,24 +60,19 @@ async function sendSms(phone, message) {
           resolve();
         });
       });
-      req.on('error', e => { console.error('[smsc] Сетевая ошибка:', e.message); resolve(); });
+      req.on('error', e => { console.error('[smsc] error:', e.message); resolve(); });
       req.setTimeout(10000, () => { req.destroy(); resolve(); });
     });
   }
 
   // ── SMS Aero ──────────────────────────────────────────────
   if (provider === 'smsaero' && process.env.SMSAERO_EMAIL && process.env.SMSAERO_API_KEY) {
-    const email  = process.env.SMSAERO_EMAIL;
-    const apiKey = process.env.SMSAERO_API_KEY;
-    const sign   = process.env.SMSAERO_SIGN || 'SMS Aero';
     const params = new URLSearchParams({
-      number:  phone.replace('+', ''),
-      text:    message,
-      sign:    sign,
-      channel: 'INFORM',
+      number: phone.replace('+', ''), text: message,
+      sign: process.env.SMSAERO_SIGN || 'SMS Aero', channel: 'INFORM',
     });
-    const auth = Buffer.from(`${email}:${apiKey}`).toString('base64');
-    const url  = `https://gate.smsaero.ru/v2/sms/send?${params.toString()}`;
+    const auth = Buffer.from(`${process.env.SMSAERO_EMAIL}:${process.env.SMSAERO_API_KEY}`).toString('base64');
+    const url = `https://gate.smsaero.ru/v2/sms/send?${params.toString()}`;
     return new Promise((resolve) => {
       const req = https.get(url, { headers: { Authorization: `Basic ${auth}` } }, (res) => {
         let body = '';
@@ -116,44 +86,14 @@ async function sendSms(phone, message) {
           resolve();
         });
       });
-      req.on('error', e => { console.error('[smsaero] Сетевая ошибка:', e.message); resolve(); });
+      req.on('error', e => { console.error('[smsaero] error:', e.message); resolve(); });
       req.setTimeout(10000, () => { req.destroy(); resolve(); });
     });
   }
 
   // ── SMS.ru ────────────────────────────────────────────────
   if (provider === 'smsru' && process.env.SMS_API_KEY) {
-    const encoded = encodeURIComponent(message);
-    const url = `https://sms.ru/sms/send?api_id=${process.env.SMS_API_KEY}&to=${phone}&msg=${encoded}&json=1`;
-    try {
-      const res  = await fetch(url);
-      const data = await res.json();
-      if (data.status !== 'OK') console.error(`[sms.ru] Ошибка:`, data);
-      else console.log(`[sms.ru] SMS отправлено на ${phone}`);
-    } catch (e) { console.error(`[sms.ru] Ошибка:`, e.message); }
-    return;
-  }
-
-  // ── DEV: вывод в консоль ──────────────────────────────────
-  console.log(`\n📱 SMS для ${phone}: ${message}\n`);
-}
-
-module.exports = { sendSms };
-
-async function sendSms(phone, message) {
-  const provider = process.env.SMS_PROVIDER;
-
-  // ── SMSC.ru ───────────────────────────────────────────────
-  if (provider === 'smsc' && process.env.SMSC_LOGIN && process.env.SMSC_PASSWORD) {
-    const params = new URLSearchParams({
-      login:   process.env.SMSC_LOGIN,
-      psw:     process.env.SMSC_PASSWORD,
-      phones:  phone,
-      mes:     message,
-      fmt:     '3', // JSON ответ
-      charset: 'utf-8',
-    });
-    const url = `https://smsc.ru/sys/send.php?${params.toString()}`;
+    const url = `https://sms.ru/sms/send?api_id=${process.env.SMS_API_KEY}&to=${phone}&msg=${encodeURIComponent(message)}&json=1`;
     return new Promise((resolve) => {
       const req = https.get(url, (res) => {
         let body = '';
@@ -161,62 +101,19 @@ async function sendSms(phone, message) {
         res.on('end', () => {
           try {
             const data = JSON.parse(body);
-            if (data.error) console.error(`[smsc] Ошибка: ${data.error_code} — ${data.error}`);
-            else console.log(`[smsc] SMS отправлено на ${phone}, id: ${data.id}`);
-          } catch { console.error('[smsc] Ошибка парсинга:', body); }
+            console.log(`[sms.ru] Ответ:`, JSON.stringify(data));
+            if (data.status !== 'OK') console.error(`[sms.ru] Ошибка:`, data);
+            else console.log(`[sms.ru] SMS отправлено на ${phone}`);
+          } catch { console.error('[sms.ru] Ошибка парсинга:', body); }
           resolve();
         });
       });
-      req.on('error', e => { console.error('[smsc] Сетевая ошибка:', e.message); resolve(); });
+      req.on('error', e => { console.error('[sms.ru] error:', e.message); resolve(); });
       req.setTimeout(10000, () => { req.destroy(); resolve(); });
     });
   }
 
-  // ── SMS Aero ──────────────────────────────────────────────
-  if (provider === 'smsaero' && process.env.SMSAERO_EMAIL && process.env.SMSAERO_API_KEY) {
-    const email  = process.env.SMSAERO_EMAIL;
-    const apiKey = process.env.SMSAERO_API_KEY;
-    const sign   = process.env.SMSAERO_SIGN || 'SMS Aero';
-    const params = new URLSearchParams({
-      number:  phone.replace('+', ''),
-      text:    message,
-      sign:    sign,
-      channel: 'INFORM',
-    });
-    const auth = Buffer.from(`${email}:${apiKey}`).toString('base64');
-    const url  = `https://gate.smsaero.ru/v2/sms/send?${params.toString()}`;
-    return new Promise((resolve) => {
-      const req = https.get(url, { headers: { Authorization: `Basic ${auth}` } }, (res) => {
-        let body = '';
-        res.on('data', d => body += d);
-        res.on('end', () => {
-          try {
-            const data = JSON.parse(body);
-            if (data.success) console.log(`[smsaero] SMS отправлено на ${phone}`);
-            else console.error(`[smsaero] Ошибка:`, data.message || body);
-          } catch { console.error('[smsaero] Ошибка парсинга:', body); }
-          resolve();
-        });
-      });
-      req.on('error', e => { console.error('[smsaero] Сетевая ошибка:', e.message); resolve(); });
-      req.setTimeout(10000, () => { req.destroy(); resolve(); });
-    });
-  }
-
-  // ── SMS.ru ────────────────────────────────────────────────
-  if (provider === 'smsru' && process.env.SMS_API_KEY) {
-    const encoded = encodeURIComponent(message);
-    const url = `https://sms.ru/sms/send?api_id=${process.env.SMS_API_KEY}&to=${phone}&msg=${encoded}&json=1`;
-    try {
-      const res  = await fetch(url);
-      const data = await res.json();
-      if (data.status !== 'OK') console.error(`[sms.ru] Ошибка:`, data);
-      else console.log(`[sms.ru] SMS отправлено на ${phone}`);
-    } catch (e) { console.error(`[sms.ru] Ошибка:`, e.message); }
-    return;
-  }
-
-  // ── DEV: вывод в консоль ──────────────────────────────────
+  // ── DEV ───────────────────────────────────────────────────
   console.log(`\n📱 SMS для ${phone}: ${message}\n`);
 }
 
