@@ -17,33 +17,29 @@ Notifications.setNotificationHandler({
  * Вызывать после успешного входа пользователя.
  */
 export async function registerPushToken(token: string): Promise<void> {
-  // Web и эмулятор не поддерживают push
+  // Web не поддерживает push
   if (Platform.OS === 'web') return;
-  if (!Device.isDevice) return;
 
   try {
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    let finalStatus = existing;
+    let finalStatus = 'granted';
 
-    if (existing !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    // Запрашиваем разрешение только на реальном устройстве
+    if (Device.isDevice) {
+      const { status: existing } = await Notifications.getPermissionsAsync();
+      finalStatus = existing;
+
+      if (existing !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
     }
 
-    if (finalStatus !== 'granted') return;
+    if (finalStatus !== 'granted') {
+      console.log('[push] Разрешение не получено:', finalStatus);
+      return;
+    }
 
-    // Получаем Expo Push Token
-    const { data: pushToken } = await Notifications.getExpoPushTokenAsync({
-      projectId: '3d014938-f9a2-4a6c-90e7-c63c2e0a6b6c',
-    });
-
-    // Отправляем на сервер
-    await apiFetch('/user/push-token', {
-      method: 'POST',
-      body: JSON.stringify({ push_token: pushToken }),
-    }, token);
-
-    // Android — нужен канал уведомлений
+    // Android — создаём канал уведомлений ДО получения токена
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Satori Tea',
@@ -52,9 +48,30 @@ export async function registerPushToken(token: string): Promise<void> {
         lightColor: '#C9A84C',
       });
     }
-  } catch (e) {
-    // Тихо игнорируем — пуши не критичны
-    console.log('[push] Ошибка регистрации токена:', e);
+
+    // Получаем Expo Push Token
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: '3d014938-f9a2-4a6c-90e7-c63c2e0a6b6c',
+    });
+
+    const pushToken = tokenData.data;
+    console.log('[push] Токен получен:', pushToken?.slice(0, 30));
+
+    if (!pushToken) {
+      console.log('[push] Токен пустой');
+      return;
+    }
+
+    // Отправляем на сервер
+    await apiFetch('/user/push-token', {
+      method: 'POST',
+      body: JSON.stringify({ push_token: pushToken }),
+    }, token);
+
+    console.log('[push] Токен сохранён на сервере');
+
+  } catch (e: any) {
+    console.error('[push] Ошибка:', e?.message || e);
   }
 }
 
