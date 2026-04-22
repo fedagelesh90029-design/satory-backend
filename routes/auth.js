@@ -21,8 +21,13 @@ function sendSmsMts(phone, text) {
     }
 
     const cleanPhone = phone.replace(/^\+/, ''); // МТС ожидает без +
-    // from не передаём — МТС использует арендованный номер автоматически
-    const body = { number: cleanPhone, destination: cleanPhone, text };
+    const sender = (process.env.MTS_SENDER || '').replace(/^\+/, '');
+    if (!sender) {
+      console.log(`[dev] SMS (нет MTS_SENDER): ${text}`);
+      return resolve();
+    }
+    // number = отправитель, destination = получатель
+    const body = { number: sender, destination: cleanPhone, text };
     const payload = JSON.stringify(body);
     const options = {
       hostname: 'api.exolve.ru',
