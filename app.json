@@ -20,6 +20,7 @@
     "android": {
       "package": "com.satory.tea",
       "icon": "./assets/logo.png",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#0A0A0A"

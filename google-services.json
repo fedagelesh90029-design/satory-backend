@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "510445569607",
+    "project_id": "satori-f053f",
+    "storage_bucket": "satori-f053f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:510445569607:android:dca4d58ab0cea52f861362",
+        "android_client_info": {
+          "package_name": "com.satory.tea"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADV1hQQcwUFgWTlPHU4fdN-KFahZ07hP8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
