@@ -29,7 +29,7 @@ router.post('/send-otp', async (req, res) => {
   }
 
   await sendSms(normalized, `Ваш код Satori: ${code}`);
-  res.json({ success: true, phone: normalized, dev_code: code }); // временно для тестирования
+  res.json({ success: true, phone: normalized, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
 });
 
 // ─── POST /api/auth/verify-otp ────────────────────────────────────────────────
