@@ -29,7 +29,15 @@
       "expo-router",
       "expo-asset",
       "expo-font",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo.png",
+          "color": "#D4A017",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "web": {
       "bundler": "metro",
