@@ -257,7 +257,20 @@ function showPage(p) {
 // ════════════════════════════════════════════════════════════
 // EVENTS
 // ════════════════════════════════════════════════════════════
+let _eventsAutoRefresh = null;
+
 async function renderEvents() {
+  // Автообновление каждые 30 секунд
+  if (_eventsAutoRefresh) clearInterval(_eventsAutoRefresh);
+  _eventsAutoRefresh = setInterval(() => {
+    if (document.getElementById('nav-events')?.classList.contains('active')) {
+      api('GET', '/api/admin/events').then(events => {
+        if (events) renderEventsTable(events);
+      });
+    } else {
+      clearInterval(_eventsAutoRefresh);
+    }
+  }, 30000);
   document.getElementById('main').innerHTML = `
     <div class="page-header">
       <h1>📅 События</h1>
@@ -269,7 +282,12 @@ async function renderEvents() {
     <div class="card" id="ev-wrap"><p class="empty">Загрузка...</p></div>`;
   const events = await api('GET', '/api/admin/events');
   if (!events) return;
+  renderEventsTable(events);
+}
+
+function renderEventsTable(events) {
   const wrap = document.getElementById('ev-wrap');
+  if (!wrap) return;
   if (!events.length) { wrap.innerHTML = '<p class="empty">Событий пока нет</p>'; return; }
   wrap.innerHTML = `<table>
     <thead><tr><th>Название</th><th>Дата</th><th>Цена</th><th>Мест</th><th>Публикация</th><th>Push</th><th>Статус</th><th></th></tr></thead>

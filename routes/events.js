@@ -4,11 +4,15 @@ const auth = require('../middleware/auth');
 
 router.get('/', async (req, res) => {
   const { month } = req.query;
-  // Публично показываем только активные И опубликованные события
+  const now = new Date();
+  // Показываем только активные, опубликованные и не прошедшие события
   let events = await db.events.find({ 
     is_active: { $ne: false },
     is_published: { $ne: false }
   });
+  // Фильтруем прошедшие — оставляем только сегодня и будущие
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  events = events.filter(e => new Date(e.date) >= today);
   if (month) {
     events = events.filter(e => {
       const m = new Date(e.date).getMonth() + 1;
