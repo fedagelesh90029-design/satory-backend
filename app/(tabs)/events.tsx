@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import { Colors } from '../../constants/theme';
 import { apiFetch, MEDIA_BASE } from '../../constants/api';
 
@@ -121,7 +123,14 @@ export default function EventsScreen() {
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
-  useEffect(() => { load(); }, []);
+  // Обновляем при возврате на экран
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Обновляем при получении пуш-уведомления
+  useEffect(() => {
+    const sub = Notifications.addNotificationReceivedListener(() => { load(); });
+    return () => sub.remove();
+  }, [load]);
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
