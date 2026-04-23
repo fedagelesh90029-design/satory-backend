@@ -103,7 +103,89 @@ async function syncProductsFromIiko() {
 
   const token = await getIikoToken();
 
-  // Получаем номенклатуру
+  // Пробуем внешнее меню если задан IIKO_EXTERNAL_MENU_ID
+  const externalMenuId = process.env.IIKO_EXTERNAL_MENU_ID;
+  if (externalMenuId) {
+    return await syncFromExternalMenu(token, externalMenuId);
+  }
+
+  // Иначе — номенклатура
+  return await syncFromNomenclature(token);
+}
+
+async function syncFromExternalMenu(token, menuId) {
+  console.log(`[iiko-api] Синхронизация из внешнего меню ID=${menuId}...`);
+
+  const res = await httpsRequest(
+    `${BASE_URL}/menu/by_id`,
+    'POST',
+    { externalMenuId: menuId, organizationIds: [IIKO_ORGANIZATION_ID] },
+    { Authorization: `Bearer ${token}` }
+  );
+
+  if (res.status !== 200) {
+    throw new Error(`iiko menu/by_id error (${res.status}): ${JSON.stringify(res.body)}`);
+  }
+
+  const categories = res.body.itemCategories || [];
+  console.log(`[iiko-api] Получено ${categories.length} категорий из внешнего меню`);
+
+  const now = new Date().toISOString();
+  let added = 0, updated = 0, skipped = 0;
+  const incomingIds = [];
+
+  for (const cat of categories) {
+    const categoryName = cat.name || 'Прочее';
+
+    // Автосоздание категории
+    const catExists = await db.categories.findOne({ name: categoryName });
+    if (!catExists) {
+      const count = await db.categories.count({});
+      await db.categories.insert({ name: categoryName, is_active: true, sort_order: count, created_at: now });
+    }
+
+    for (const item of (cat.items || [])) {
+      if (!item.name) { skipped++; continue; }
+
+      const price = item.sizePrices?.[0]?.price?.currentPrice ?? item.price ?? 0;
+      const imageUrl = item.imageLinks?.[0] ?? null;
+      const iikoId = item.itemId || item.id;
+
+      incomingIds.push(iikoId);
+
+      const existing = await db.products.findOne({ iiko_id: iikoId });
+      if (existing) {
+        await db.products.update({ iiko_id: iikoId }, {
+          $set: { name: item.name, category: categoryName, price, description: item.description || '', image_url: imageUrl, active: true, updated_at: now }
+        });
+        updated++;
+      } else {
+        await db.products.insert({
+          iiko_id: iikoId, name: item.name, category: categoryName, price,
+          description: item.description || '', image_url: imageUrl, active: true,
+          is_manual: false, price_override: null, category_override: null,
+          rating: 0, reviews_count: 0, badge: null, created_at: now, updated_at: now,
+        });
+        added++;
+      }
+    }
+  }
+
+  // Мягкое удаление
+  const allActive = await db.products.find({ active: true, is_manual: { $ne: true } });
+  for (const p of allActive) {
+    if (p.iiko_id && !incomingIds.includes(p.iiko_id)) {
+      await db.products.update({ _id: p._id }, { $set: { active: false, updated_at: now } });
+    }
+  }
+
+  await db.sync_log.insert({ type: 'products_iiko_api', status: 'success', rows_processed: incomingIds.length, created_at: now, detail: { added, updated, skipped } });
+  console.log(`[iiko-api] Готово: +${added} новых, ~${updated} обновлено, ×${skipped} пропущено`);
+  return { added, updated, skipped, total: incomingIds.length };
+}
+
+async function syncFromNomenclature(token) {
+  console.log('[iiko-api] Синхронизация из номенклатуры...');
   const res = await httpsRequest(
     `${BASE_URL}/nomenclature`,
     'POST',
