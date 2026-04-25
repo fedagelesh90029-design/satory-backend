@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Satori Tea — Скачать приложение</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0A0A;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: #1A1A1A;
+    border-radius: 24px;
+    padding: 40px 32px;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    border: 1px solid #2A2A2A;
+  }
+  .logo {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    color: #D4A017;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .tagline {
+    color: #888;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+  .icon {
+    font-size: 72px;
+    margin-bottom: 24px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  p {
+    color: #888;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 32px;
+  }
+  .btn {
+    display: block;
+    background: #D4A017;
+    color: #0A0A0A;
+    text-decoration: none;
+    border-radius: 14px;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: #E8B84B; }
+  .btn-outline {
+    display: block;
+    background: transparent;
+    color: #D4A017;
+    text-decoration: none;
+    border-radius: 14px;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 700;
+    border: 1px solid #D4A017;
+  }
+  .hint {
+    color: #555;
+    font-size: 12px;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Satori</div>
+  <div class="tagline">Чайная культура</div>
+  <div class="icon">🍵</div>
+  <h1>Скачать приложение</h1>
+  <p>Каталог чая, события, бонусная программа и многое другое</p>
+
+  <div id="download-section">
+    <p style="color:#555;font-size:13px">Определяем ваше устройство...</p>
+  </div>
+
+  <p class="hint">Версия для iOS появится в App Store</p>
+</div>
+
+<script>
+  const APK_URL = 'https://expo.dev/artifacts/eas/v9jccJaqxwc4mguudQaYEn.apk';
+  const APPSTORE_URL = '#'; // заменить когда будет в App Store
+
+  const ua = navigator.userAgent.toLowerCase();
+  const isAndroid = /android/.test(ua);
+  const isIOS = /iphone|ipad|ipod/.test(ua);
+
+  const section = document.getElementById('download-section');
+
+  if (isAndroid) {
+    section.innerHTML = `
+      <a href="${APK_URL}" class="btn" id="dl-btn">⬇️ Скачать для Android</a>
+      <p style="color:#555;font-size:12px;margin-top:8px">APK файл · Разрешите установку из неизвестных источников</p>
+    `;
+    // Автоматически начинаем скачивание
+    setTimeout(() => { window.location.href = APK_URL; }, 1000);
+  } else if (isIOS) {
+    section.innerHTML = `
+      <a href="${APPSTORE_URL}" class="btn">🍎 App Store</a>
+      <p style="color:#555;font-size:12px;margin-top:8px">Скоро в App Store</p>
+    `;
+  } else {
+    section.innerHTML = `
+      <a href="${APK_URL}" class="btn">⬇️ Скачать для Android</a>
+      <a href="${APPSTORE_URL}" class="btn-outline" style="margin-top:8px">🍎 App Store (скоро)</a>
+    `;
+  }
+</script>
+</body>
+</html>
