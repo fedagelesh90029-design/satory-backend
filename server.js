@@ -39,6 +39,7 @@ app.use('/api/sync', require('./routes/sync'));
 app.use('/api/gallery', require('./routes/gallery'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/admin/settings', require('./routes/settings'));
+app.use('/api/telegram', require('./routes/telegram'));
 app.use('/api/categories', async (req, res) => {
   const db = require('./db');
   const cats = await db.categories.find({ is_active: true });

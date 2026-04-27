@@ -32,7 +32,52 @@ router.post('/send-otp', async (req, res) => {
   res.json({ success: true, phone: normalized, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
 });
 
-// ─── POST /api/auth/verify-otp ────────────────────────────────────────────────
+// ─── POST /api/auth/send-otp-telegram ────────────────────────────────────────
+router.post('/send-otp-telegram', async (req, res) => {
+  if (!process.env.TG_BOT_TOKEN) {
+    return res.status(503).json({ error: 'Telegram не настроен на сервере' });
+  }
+
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ error: 'Укажите номер телефона' });
+
+  const normalized = normalizePhone(String(phone));
+  if (!normalized) return res.status(400).json({ error: 'Неверный формат номера телефона' });
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expires_at = Date.now() + OTP_TTL;
+  const crypto = require('crypto');
+  const hash = crypto.randomBytes(16).toString('hex');
+
+  const existing = await db.otp_codes.findOne({ phone: normalized });
+  if (existing) {
+    await db.otp_codes.update({ phone: normalized }, { $set: { code, expires_at, attempts: 0, tg_link_hash: hash } });
+  } else {
+    await db.otp_codes.insert({ phone: normalized, code, expires_at, attempts: 0, tg_link_hash: hash });
+  }
+
+  const { getBotUsername, sendTelegramMessage } = require('../services/telegramBot');
+
+  // Если у пользователя уже привязан Telegram — отправляем напрямую
+  const user = await db.users.findOne({ phone: normalized });
+  if (user && user.telegram_chat_id) {
+    await sendTelegramMessage(user.telegram_chat_id,
+      `🔐 Ваш код подтверждения Satori Tea:\n\n<b>${code}</b>\n\n⏱ Действителен 5 минут.`
+    );
+    const p = normalized;
+    const phone_masked = p.length >= 4 ? p.slice(0, 3) + '***' + p.slice(-2) : p;
+    return res.json({ success: true, method: 'telegram_direct', phone_masked });
+  }
+
+  // Иначе — ссылка для первичной привязки
+  const botUsername = await getBotUsername();
+  if (!botUsername) return res.status(500).json({ error: 'Не удалось получить имя бота' });
+
+  const tg_link = `https://t.me/${botUsername}?start=${hash}`;
+  res.json({ success: true, method: 'telegram_link', tg_link, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
+});
+
+
 router.post('/verify-otp', async (req, res) => {
   const { phone, code, name } = req.body;
   if (!phone || !code) return res.status(400).json({ error: 'phone и code обязательны' });

@@ -1,10 +1,48 @@
 /**
- * Общий SMS-хелпер — поддерживает sms.ru, smsaero.ru, smsc.ru, МТС Exolve
+ * Общий SMS/OTP-хелпер — поддерживает sms.ru, smsaero.ru, smsc.ru, МТС Exolve,
+ * ВКонтакте (VK Notify), Telegram Bot
  */
 const https = require('https');
 
 async function sendSms(phone, message) {
   const provider = process.env.SMS_PROVIDER;
+
+  // ── ВКонтакте (VK Notify) ─────────────────────────────────────────────────
+  if (provider === 'vk' && process.env.VK_SERVICE_TOKEN) {
+    const params = new URLSearchParams({
+      access_token: process.env.VK_SERVICE_TOKEN,
+      phone: phone.replace(/^\+/, ''),
+      message,
+      v: '5.199',
+    });
+    const url = `https://api.vk.com/method/messages.sendMessageToPhoneNumber?${params.toString()}`;
+    return new Promise((resolve) => {
+      const req = https.get(url, (res) => {
+        let body = '';
+        res.on('data', d => body += d);
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            if (data.error) console.error(`[vk] Ошибка: ${data.error.error_code} — ${data.error.error_msg}`);
+            else console.log(`[vk] SMS отправлено на ${phone}`);
+          } catch { console.error('[vk] Ошибка парсинга:', body); }
+          resolve();
+        });
+      });
+      req.on('error', e => { console.error('[vk] error:', e.message); resolve(); });
+      req.setTimeout(10000, () => { req.destroy(); resolve(); });
+    });
+  }
+
+  // ── Telegram Bot ──────────────────────────────────────────────────────────
+  if (provider === 'telegram' && process.env.TG_BOT_TOKEN) {
+    const { sendOtpViaTelegram } = require('../services/telegramBot');
+    const sent = await sendOtpViaTelegram(phone, message);
+    if (sent) return;
+    // Если не привязан — fallback в консоль
+    console.log(`\n📱 [telegram fallback] для ${phone}: ${message}\n`);
+    return;
+  }
 
   // ── МТС Exolve ────────────────────────────────────────────
   if (provider === 'mts' && process.env.MTS_API_KEY) {
