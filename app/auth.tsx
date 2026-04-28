@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Alert, ScrollView,
+  KeyboardAvoidingView, Platform, Alert, ScrollView, Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +29,7 @@ export default function AuthScreen() {
   const [countdown, setCountdown] = useState(0);
   const [showEmail, setShowEmail] = useState(false);
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [tgLoading, setTgLoading] = useState(false);
 
   const otpRefs = useRef<(TextInput | null)[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -72,6 +73,31 @@ export default function AuthScreen() {
       Alert.alert('Ошибка', e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const sendOtpViaTelegram = async () => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 10) { Alert.alert('Ошибка', 'Введите корректный номер телефона'); return; }
+    setTgLoading(true);
+    try {
+      const resp = await apiFetch('/auth/send-otp-telegram', { method: 'POST', body: JSON.stringify({ phone }) });
+      if (resp.tg_link) {
+        // Первый раз — нужно открыть бота для привязки
+        await Linking.openURL(resp.tg_link);
+        Alert.alert(
+          'Откройте Telegram',
+          'Нажмите "Старт" в боте Satori Tea — он пришлёт вам код подтверждения.',
+          [{ text: 'OK' }]
+        );
+      }
+      setDevCode(resp.dev_code || null);
+      setMode('otp');
+      startCountdown();
+    } catch (e: any) {
+      Alert.alert('Ошибка', e.message);
+    } finally {
+      setTgLoading(false);
     }
   };
 
@@ -171,7 +197,16 @@ export default function AuthScreen() {
           onPress={sendOtp}
           disabled={loading}
         >
-          <Text style={styles.btnText}>{loading ? 'Отправка...' : 'Получить код'}</Text>
+          <Text style={styles.btnText}>{loading ? 'Отправка...' : 'Получить код по SMS'}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tgBtn, tgLoading && styles.btnDisabled]}
+          onPress={sendOtpViaTelegram}
+          disabled={tgLoading}
+        >
+          <Ionicons name="paper-plane-outline" size={18} color="#fff" />
+          <Text style={styles.tgBtnText}>{tgLoading ? 'Открываем...' : 'Получить код в Telegram'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.altBtn} onPress={() => setShowEmail(!showEmail)}>
@@ -308,6 +343,8 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: Colors.gold, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: Colors.bg, fontSize: 16, fontWeight: '700' },
+  tgBtn: { backgroundColor: '#2AABEE', borderRadius: 14, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 10 },
+  tgBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   altBtn: { alignItems: 'center', marginTop: 16, padding: 8 },
   altBtnDisabled: { opacity: 0.5 },
   altText: { color: Colors.gold, fontSize: 14 },

@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image,
-  TouchableOpacity, Dimensions, ActivityIndicator,
-  Modal, TextInput, KeyboardAvoidingView, Platform,
+  TouchableOpacity, Dimensions, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -18,20 +17,10 @@ export default function EventDetailScreen() {
   const { token } = useAuth();
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)'); };
 
-  const [event, setEvent]         = useState<any>(null);
-  const [loading, setLoading]     = useState(true);
-  const [registered, setReg]      = useState(false);
-  const [regLoading, setRegLoad]  = useState(false);
-
-  // OTP-модалка
-  const [otpVisible, setOtpVisible]   = useState(false);
-  const [phoneMasked, setPhoneMasked] = useState('');
-  const [otp, setOtp]                 = useState(['', '', '', '', '', '']);
-  const [otpError, setOtpError]       = useState('');
-  const [otpLoading, setOtpLoading]   = useState(false);
-  const [countdown, setCountdown]     = useState(0);
-  const otpRefs = useRef<(TextInput | null)[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [event, setEvent]        = useState<any>(null);
+  const [loading, setLoading]    = useState(true);
+  const [registered, setReg]     = useState(false);
+  const [regLoading, setRegLoad] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -45,39 +34,20 @@ export default function EventDetailScreen() {
     if (!token) { router.push('/auth'); return; }
     setRegLoad(true);
     try {
-      // Шаг 1: запрашиваем OTP
-      const r = await apiFetch(`/events/${id}/register/send-otp`, { method: 'POST' }, token);
-      setPhoneMasked(r.phone_masked || '');
-      setOtp(['', '', '', '', '', '']);
-      setOtpError('');
-      setOtpVisible(true);
-      startCountdown();
+      await apiFetch(`/events/${id}/register`, { method: 'POST' }, token);
+      const updated = await apiFetch(`/events/${id}`);
+      setEvent(updated);
+      setReg(true);
     } catch (e: any) {
-      if (e.message?.includes('уже записаны')) setReg(true);
+      if (e.message?.includes('уже записаны')) {
+        setReg(true);
+      } else {
+        Alert.alert('Ошибка', e.message);
+      }
     } finally {
       setRegLoad(false);
     }
   };
-
-  const startCountdown = () => {
-    setCountdown(60);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setCountdown(c => { if (c <= 1) { clearInterval(timerRef.current!); return 0; } return c - 1; });
-    }, 1000);
-  };
-
-  const confirmOtp = async () => {
-    const code = otp.join('');
-    if (code.length < 6) { setOtpError('Введите 6-значный код'); return; }
-    setOtpLoading(true);
-    setOtpError('');
-    try {
-      await apiFetch(`/events/${id}/register/confirm`, {
-        method: 'POST', body: JSON.stringify({ code }),
-      }, token);
-      // Обновляем данные события
-      const updated = await apiFetch(`/events/${id}`);
       setEvent(updated);
       setReg(true);
       setOtpVisible(false);
@@ -233,64 +203,6 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         )}
       </View>
-
-      {/* OTP-модалка подтверждения */}
-      <Modal visible={otpVisible} transparent animationType="slide" onRequestClose={() => setOtpVisible(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-
-            <TouchableOpacity style={styles.modalClose} onPress={() => setOtpVisible(false)}>
-              <Ionicons name="close" size={22} color={Colors.gray} />
-            </TouchableOpacity>
-
-            <Text style={styles.modalTitle}>Подтверждение записи</Text>
-            <Text style={styles.modalSub}>
-              Отправили SMS-код на номер{'\n'}
-              <Text style={{ color: Colors.white, fontWeight: '600' }}>{phoneMasked}</Text>
-            </Text>
-
-            {/* OTP-поля */}
-            <View style={styles.otpRow}>
-              {otp.map((digit, i) => (
-                <TextInput
-                  key={i}
-                  ref={r => { otpRefs.current[i] = r; }}
-                  style={[styles.otpCell, digit && styles.otpCellFilled, otpError && styles.otpCellError]}
-                  value={digit}
-                  onChangeText={v => handleOtpChange(v, i)}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  selectTextOnFocus
-                />
-              ))}
-            </View>
-
-            {otpError ? <Text style={styles.otpError}>{otpError}</Text> : null}
-
-            <TouchableOpacity
-              style={[styles.confirmBtn, otpLoading && { opacity: 0.6 }]}
-              onPress={confirmOtp}
-              disabled={otpLoading}
-            >
-              {otpLoading
-                ? <ActivityIndicator color={Colors.bg} />
-                : <Text style={styles.confirmBtnText}>Подтвердить запись</Text>
-              }
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.resendBtn, countdown > 0 && { opacity: 0.4 }]}
-              onPress={countdown === 0 ? register : undefined}
-              disabled={countdown > 0}
-            >
-              <Text style={styles.resendText}>
-                {countdown > 0 ? `Повторить через ${countdown} сек` : 'Отправить код повторно'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </View>
   );
 }
@@ -318,21 +230,4 @@ const styles = StyleSheet.create({
   regBtnDone:  { backgroundColor: Colors.green },
   regBtnDisabled: { backgroundColor: Colors.gray },
   regBtnText:  { color: Colors.bg, fontSize: 16, fontWeight: '700' },
-
-  // OTP Modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalSheet:  { backgroundColor: Colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 48 },
-  modalHandle: { width: 40, height: 4, backgroundColor: Colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalClose:  { position: 'absolute', top: 20, right: 20 },
-  modalTitle:  { color: Colors.white, fontSize: 20, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  modalSub:    { color: Colors.gray, fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 28 },
-  otpRow:      { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 12 },
-  otpCell:     { width: 46, height: 56, borderRadius: 12, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.border, textAlign: 'center', fontSize: 22, fontWeight: '700', color: Colors.white },
-  otpCellFilled: { borderColor: Colors.gold },
-  otpCellError:  { borderColor: Colors.red },
-  otpError:    { color: Colors.red, fontSize: 13, textAlign: 'center', marginBottom: 12 },
-  confirmBtn:  { backgroundColor: Colors.gold, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
-  confirmBtnText: { color: Colors.bg, fontSize: 16, fontWeight: '700' },
-  resendBtn:   { alignItems: 'center', marginTop: 16, padding: 8 },
-  resendText:  { color: Colors.gold, fontSize: 14 },
 });
