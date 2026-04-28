@@ -9,4 +9,3 @@ web-build/
 *.mobileprovision
 *.orig.*
 firebase-service-account.json
-google-services.json
