@@ -48,23 +48,6 @@ export default function EventDetailScreen() {
       setRegLoad(false);
     }
   };
-      setEvent(updated);
-      setReg(true);
-      setOtpVisible(false);
-    } catch (e: any) {
-      setOtpError(e.message || 'Неверный код');
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const handleOtpChange = (val: string, idx: number) => {
-    const newOtp = [...otp];
-    newOtp[idx] = val.slice(-1);
-    setOtp(newOtp);
-    if (val && idx < 5) otpRefs.current[idx + 1]?.focus();
-    if (!val && idx > 0) otpRefs.current[idx - 1]?.focus();
-  };
 
   if (loading) return (
     <View style={styles.center}>
