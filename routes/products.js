@@ -22,21 +22,25 @@ async function withMeta(product) {
 }
 
 router.get('/', async (req, res) => {
-  const { category, search, excludeCategory } = req.query;
+  const { category, search, excludeCategory, teaOnly } = req.query;
   const query = { active: { $ne: false } };
   if (search) query.name = new RegExp(search, 'i');
 
   let products = await db.products.find(query);
 
-  // Фильтр по категории с учётом override
-  if (category && category !== 'Все') {
+  // Чайные категории
+  const TEA_CATEGORIES = ['Пуэр', 'Улун', 'Зелёный чай', 'Красный чай', 'Белый чай', 'Тёмный чай', 'Травы и добавки', 'Прочее'];
+
+  if (teaOnly === '1') {
+    const nonTea = ['Посуда', 'Аксессуары', 'Еда', 'Услуги'];
+    products = products.filter(p => !nonTea.includes(p.category_override ?? p.category));
+  } else if (category && category !== 'Все') {
     products = products.filter(p => (p.category_override ?? p.category) === category);
   }
   if (excludeCategory) {
     products = products.filter(p => (p.category_override ?? p.category) !== excludeCategory);
   }
 
-  // Применяем override цены и категории
   res.json(products.map(p => ({
     ...p,
     price:    p.price_override    ?? p.price,
