@@ -3,6 +3,8 @@
  * Управление товарами и мета-данными — только для администратора.
  */
 const router    = require('express').Router();
+const path      = require('path');
+const fs        = require('fs');
 const db        = require('../db');
 const adminAuth = require('../middleware/adminAuth');
 const { broadcastPush } = require('../services/pushService');
@@ -155,6 +157,7 @@ router.put('/:id/meta', async (req, res) => {
 
 // ─── POST /api/admin/products/:id/images ─────────────────────────────────────
 // Принимает { url: '/uploads/products/...' } — URL уже загруженного файла
+// Заменяет главное фото товара (image_url) и сбрасывает галерею до одного фото
 router.post('/:id/images', async (req, res) => {
   const product = await db.products.findOne({ _id: req.params.id });
   if (!product) return res.status(404).json({ error: 'Товар не найден' });
@@ -163,17 +166,37 @@ router.post('/:id/images', async (req, res) => {
   if (!url) return res.status(400).json({ error: 'url обязателен' });
 
   const now = new Date().toISOString();
-  const existing = await db.products_meta.findOne({ product_id: req.params.id });
-  const imageEntry = { id: `img_${Date.now()}`, url };
 
-  if (existing) {
-    const images = [...(existing.images || []), imageEntry];
-    await db.products_meta.update({ product_id: req.params.id }, { $set: { images, updated_at: now } });
-  } else {
-    await db.products_meta.insert({ product_id: req.params.id, images: [imageEntry], full_description: '', brewing_tips: '', origin: '', is_handmade: false, updated_at: now });
+  // Удаляем старый файл с диска если он локальный
+  if (product.image_url && product.image_url.startsWith('/uploads/')) {
+    const oldPath = path.join(__dirname, '..', product.image_url);
+    if (fs.existsSync(oldPath)) {
+      try { fs.unlinkSync(oldPath); } catch {}
+    }
   }
 
-  res.json(await withMeta(product));
+  // Обновляем главное фото товара
+  await db.products.update({ _id: req.params.id }, {
+    $set: { image_url: url, updated_at: now },
+  });
+
+  // Заменяем галерею — только новое фото
+  const imageEntry = { id: `img_${Date.now()}`, url };
+  const existing = await db.products_meta.findOne({ product_id: req.params.id });
+  if (existing) {
+    await db.products_meta.update({ product_id: req.params.id }, {
+      $set: { images: [imageEntry], updated_at: now },
+    });
+  } else {
+    await db.products_meta.insert({
+      product_id: req.params.id,
+      images: [imageEntry],
+      full_description: '', brewing_tips: '', origin: '', is_handmade: false,
+      updated_at: now,
+    });
+  }
+
+  res.json(await withMeta(await db.products.findOne({ _id: req.params.id })));
 });
 
 // ─── PUT /api/admin/products/:id/images/reorder ──────────────────────────────

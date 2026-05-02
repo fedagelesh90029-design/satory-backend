@@ -831,7 +831,16 @@ async function showSchedulerStats() {
 let _prods = [];
 async function renderProducts() {
   document.getElementById('main').innerHTML = `
-    <div class="page-header"><h1>🍵 Товары</h1><button class="btn btn-primary" onclick="openManualForm()">+ Ручной товар</button></div>
+    <div class="page-header">
+      <h1>🍵 Товары</h1>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label class="btn btn-ghost" style="cursor:pointer" title="Загрузить товары из Excel/CSV">
+          📊 Загрузить Excel
+          <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="uploadExcel(this)">
+        </label>
+        <button class="btn btn-primary" onclick="openManualForm()">+ Ручной товар</button>
+      </div>
+    </div>
     <div class="card">
       <div class="filters">
         <input id="p-q" placeholder="Поиск..." oninput="filterProds()">
@@ -844,6 +853,20 @@ async function renderProducts() {
   const sel = document.getElementById('p-cat');
   cats.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
   renderProdsTable(_prods);
+}
+
+async function uploadExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  toast('Загружаем файл...');
+  const r = await api('POST', '/api/iiko/upload/products', fd, true);
+  if (r) {
+    toast(`✅ Загружено: +${r.added} новых, ~${r.updated} обновлено, ×${r.skipped} пропущено`);
+    renderProducts();
+  }
+  input.value = '';
 }
 
 function filterProds() {

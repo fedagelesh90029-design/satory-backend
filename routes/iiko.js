@@ -36,10 +36,21 @@ const upload = multer({
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 function adminOnly(req, res, next) {
-  if (req.headers['x-admin-secret'] !== ADMIN_SECRET) {
-    return res.status(403).json({ error: 'Доступ запрещён' });
+  // Способ 1: x-admin-secret
+  if (req.headers['x-admin-secret'] === ADMIN_SECRET) return next();
+
+  // Способ 2: JWT Bearer токен
+  const header = req.headers.authorization;
+  if (header) {
+    const token = header.split(' ')[1];
+    try {
+      const jwt = require('jsonwebtoken');
+      const payload = jwt.verify(token, process.env.JWT_SECRET || 'satory_secret_2026');
+      if (payload.is_admin) return next();
+    } catch {}
   }
-  next();
+
+  return res.status(403).json({ error: 'Доступ запрещён' });
 }
 
 // ─── Sync helpers ─────────────────────────────────────────────────────────────
@@ -50,7 +61,6 @@ async function runProductSync(filePath) {
 
   const incomingIds = rows.map(r => r.iiko_id);
 
-  // Батчевый upsert
   for (const row of rows) {
     // Автосоздание категории если новая
     if (row.category) {
@@ -63,23 +73,43 @@ async function runProductSync(filePath) {
 
     const existing = await db.products.findOne({ iiko_id: row.iiko_id });
     if (existing) {
+      // Обновляем только цену/остаток/название/категорию — фото НЕ трогаем
       await db.products.update({ iiko_id: row.iiko_id }, {
         $set: {
-          name: row.name, category: row.category, price: row.price,
-          stock: row.stock, description: row.description, unit: row.unit,
-          active: true, updated_at: now,
-          // price_override и category_override НЕ трогаем
+          name:        row.name,
+          category:    row.category,
+          price:       row.price,
+          stock:       row.stock,
+          description: row.description,
+          unit:        row.unit,
+          active:      true,
+          updated_at:  now,
+          // image_url, price_override, category_override — НЕ трогаем
         },
       });
       updated++;
     } else {
-      await db.products.insert({ ...row, active: true, rating: 0, reviews_count: 0, badge: null, year: null, price_override: null, category_override: null, updated_at: now });
+      // Новый товар — добавляем без фото (фото добавят вручную)
+      await db.products.insert({
+        ...row,
+        image_url:        null,
+        active:           true,
+        is_manual:        false,
+        rating:           0,
+        reviews_count:    0,
+        badge:            null,
+        year:             null,
+        price_override:   null,
+        category_override: null,
+        created_at:       now,
+        updated_at:       now,
+      });
       added++;
     }
   }
 
-  // Мягкое удаление отсутствующих
-  const allProducts = await db.products.find({ active: true });
+  // Мягкое удаление товаров которых нет в новом файле
+  const allProducts = await db.products.find({ active: true, is_manual: { $ne: true } });
   for (const p of allProducts) {
     if (p.iiko_id && !incomingIds.includes(p.iiko_id)) {
       await db.products.update({ _id: p._id }, { $set: { active: false, updated_at: now } });
@@ -87,7 +117,6 @@ async function runProductSync(filePath) {
   }
 
   const delta = { added, updated, skipped, total: rows.length, synced_at: now };
-  // Сохраняем метку синхронизации
   const syncData = fs.existsSync(LAST_SYNC_FILE) ? JSON.parse(fs.readFileSync(LAST_SYNC_FILE)) : {};
   fs.writeFileSync(LAST_SYNC_FILE, JSON.stringify({ ...syncData, products: now }));
   await db.sync_log.insert({ type: 'products', status: 'success', rows_processed: rows.length, created_at: now });
