@@ -28,8 +28,12 @@ router.get('/', async (req, res) => {
 
   let products = await db.products.find(query);
 
-  // Скрываем товары с нулевым или отрицательным остатком (кроме ручных товаров без остатка)
-  products = products.filter(p => p.is_manual || p.stock === null || p.stock === undefined || p.stock > 0);
+  // Скрываем товары с нулевым или отрицательным остатком (кроме ручных товаров и услуг)
+  products = products.filter(p => {
+    const cat = p.category_override ?? p.category;
+    if (p.is_manual || cat === 'Услуги') return true; // услуги и ручные всегда показываем
+    return p.stock === null || p.stock === undefined || p.stock > 0;
+  });
 
   // Чайные категории
   const nonTea = ['Посуда', 'Аксессуары', 'Еда', 'Услуги'];
