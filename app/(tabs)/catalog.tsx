@@ -11,9 +11,11 @@ import { ProductCard } from '../../components/ProductCard';
 import { useCart } from '../../context/CartContext';
 
 const CATEGORIES = [
-  { id: 'Все',     label: 'Все',    emoji: '🍃' },
-  { id: 'Чай',    label: 'Чай',    emoji: '🍵' },
-  { id: 'Посуда', label: 'Посуда', emoji: '🫖' },
+  { id: 'Все',          label: 'Все',        emoji: '🍃' },
+  { id: 'Чай',         label: 'Чай',        emoji: '🍵' },
+  { id: 'Посуда',      label: 'Посуда',     emoji: '🫖' },
+  { id: 'Аксессуары',  label: 'Аксессуары', emoji: '🎋' },
+  { id: 'Еда',         label: 'Еда',        emoji: '🍰' },
 ];
 
 const { width } = Dimensions.get('window');
@@ -33,8 +35,12 @@ export default function CatalogScreen() {
     const params = new URLSearchParams();
     if (category === 'Посуда') {
       params.set('category', 'Посуда');
+    } else if (category === 'Аксессуары') {
+      params.set('category', 'Аксессуары');
+    } else if (category === 'Еда') {
+      params.set('category', 'Еда');
     } else if (category === 'Чай') {
-      params.set('excludeCategory', 'Посуда');
+      params.set('teaOnly', '1');
     }
     if (search) params.set('search', search);
     apiFetch(`/products?${params}`).then(setProducts).catch(() => {});
