@@ -50,7 +50,30 @@ function readFile(filePath) {
   }
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   if (!sheet) throw new Error(`Файл "${filePath}" не содержит листов`);
-  return XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+  // Сначала пробуем стандартный парсинг
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  if (rows.length > 0) {
+    const firstKey = Object.keys(rows[0])[0] || '';
+    // Если первая строка — не заголовок (например "Товары"), ищем строку с реальными заголовками
+    const headerKeywords = ['название', 'наименование', 'name', 'артикул', 'код'];
+    const hasHeader = headerKeywords.some(k => firstKey.toLowerCase().includes(k));
+    if (hasHeader) return rows;
+  }
+
+  // Ищем строку с заголовками (перебираем первые 10 строк)
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  let headerRow = 0;
+  for (let i = 0; i < Math.min(10, rawRows.length); i++) {
+    const row = rawRows[i].map(c => String(c).toLowerCase().trim());
+    if (row.some(c => ['название', 'наименование', 'name', 'артикул', 'код'].includes(c))) {
+      headerRow = i;
+      break;
+    }
+  }
+
+  // Парсим начиная с найденной строки заголовков
+  return XLSX.utils.sheet_to_json(sheet, { defval: '', range: headerRow });
 }
 
 /**
