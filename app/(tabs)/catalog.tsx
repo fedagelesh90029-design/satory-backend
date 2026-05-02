@@ -16,6 +16,7 @@ const CATEGORIES = [
   { id: 'Посуда',      label: 'Посуда',     emoji: '🫖' },
   { id: 'Аксессуары',  label: 'Аксессуары', emoji: '🎋' },
   { id: 'Еда',         label: 'Еда',        emoji: '🍰' },
+  { id: 'Услуги',      label: 'Услуги',     emoji: '🍵' },
 ];
 
 const { width } = Dimensions.get('window');
@@ -39,8 +40,13 @@ export default function CatalogScreen() {
       params.set('category', 'Аксессуары');
     } else if (category === 'Еда') {
       params.set('category', 'Еда');
+    } else if (category === 'Услуги') {
+      params.set('category', 'Услуги');
     } else if (category === 'Чай') {
       params.set('teaOnly', '1');
+    } else {
+      // "Все" — скрываем услуги
+      params.set('excludeCategory', 'Услуги');
     }
     if (search) params.set('search', search);
     apiFetch(`/products?${params}`).then(setProducts).catch(() => {});
