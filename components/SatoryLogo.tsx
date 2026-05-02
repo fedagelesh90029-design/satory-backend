@@ -1,13 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { Colors } from '../constants/theme';
+import { View, Image, StyleSheet } from 'react-native';
 
-const logoImage = require('../assets/logo.png');
+const satoryImage = require('../assets/Satory.png');
 
 export function SatoryLogoIcon({ size = 40 }: { size?: number }) {
   return (
     <Image
-      source={logoImage}
+      source={satoryImage}
       style={{ width: size, height: size, resizeMode: 'contain' }}
     />
   );
@@ -16,25 +15,14 @@ export function SatoryLogoIcon({ size = 40 }: { size?: number }) {
 export function SatoryLogoFull({ size = 40 }: { size?: number }) {
   return (
     <View style={styles.row}>
-      <SatoryLogoIcon size={size} />
+      <Image
+        source={satoryImage}
+        style={{ width: size * 3, height: size, resizeMode: 'contain' }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  circle: {
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  kanji: {
-    fontWeight: '300',
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  name: {
-    color: Colors.white,
-    fontWeight: '300',
-    letterSpacing: 4,
-    textTransform: 'uppercase',
-  },
+  row: { alignItems: 'center', justifyContent: 'center' },
 });
