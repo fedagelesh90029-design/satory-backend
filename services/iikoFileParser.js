@@ -107,7 +107,7 @@ async function parseProductsFile(filePath) {
   let skipped = 0;
 
   for (const row of rows) {
-    const name    = col(row, ['наименование', 'название', 'name']);
+    const name    = col(row, ['наименование', 'название', 'name']).replace(/^\d+\s+/, '');
     const iiko_id = col(row, ['код', 'артикул', 'code', 'id']);
     if (!name || !iiko_id) { skipped++; continue; }
 
