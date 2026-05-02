@@ -17,7 +17,6 @@ export function SatoryLogoFull({ size = 40 }: { size?: number }) {
   return (
     <View style={styles.row}>
       <SatoryLogoIcon size={size} />
-      <Text style={[styles.name, { fontSize: size * 0.55 }]}>Satori</Text>
     </View>
   );
 }
