@@ -28,11 +28,13 @@ router.get('/', async (req, res) => {
 
   let products = await db.products.find(query);
 
+  // Скрываем товары с нулевым или отрицательным остатком (кроме ручных товаров без остатка)
+  products = products.filter(p => p.is_manual || p.stock === null || p.stock === undefined || p.stock > 0);
+
   // Чайные категории
-  const TEA_CATEGORIES = ['Пуэр', 'Улун', 'Зелёный чай', 'Красный чай', 'Белый чай', 'Тёмный чай', 'Травы и добавки', 'Прочее'];
+  const nonTea = ['Посуда', 'Аксессуары', 'Еда', 'Услуги'];
 
   if (teaOnly === '1') {
-    const nonTea = ['Посуда', 'Аксессуары', 'Еда', 'Услуги'];
     products = products.filter(p => !nonTea.includes(p.category_override ?? p.category));
   } else if (category && category !== 'Все') {
     products = products.filter(p => (p.category_override ?? p.category) === category);
