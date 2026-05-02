@@ -17,7 +17,9 @@ const CATEGORIES = [
 ];
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 40) / 2;
+const PADDING = 16;
+const GAP = 8;
+const CARD_WIDTH = (width - PADDING * 2 - GAP) / 2;
 
 export default function CatalogScreen() {
   const [products, setProducts] = useState<any[]>([]);
@@ -145,7 +147,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 12,
+    paddingHorizontal: PADDING, paddingTop: 60, paddingBottom: 12,
   },
   title: { color: Colors.white, fontSize: 28, fontWeight: '700' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -171,11 +173,11 @@ const styles = StyleSheet.create({
   cartBadgeText: { color: Colors.white, fontSize: 9, fontWeight: '700' },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: Colors.card, marginHorizontal: 20, borderRadius: 12,
+    backgroundColor: Colors.card, marginHorizontal: PADDING, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12,
   },
   searchInput: { flex: 1, color: Colors.white, fontSize: 14 },
-  catsRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12 },
+  catsRow: { flexDirection: 'row', paddingHorizontal: PADDING, gap: GAP, marginBottom: 12 },
   catsScroll: { flexGrow: 0, marginBottom: 12 },
   catsContent: { paddingHorizontal: 16, gap: 8, alignItems: 'center', flexDirection: 'row' },
   catChip: {
@@ -188,7 +190,7 @@ const styles = StyleSheet.create({
   catEmoji: { fontSize: 14 },
   catText: { color: Colors.grayLight, fontSize: 13, fontWeight: '500', flexShrink: 0, whiteSpace: 'nowrap' } as any,
   catTextActive: { color: Colors.bg, fontWeight: '700' },
-  count: { color: Colors.gray, fontSize: 13, paddingHorizontal: 20, marginBottom: 8 },
-  row: { paddingHorizontal: 10, marginBottom: 8 },
+  count: { color: Colors.gray, fontSize: 13, paddingHorizontal: PADDING, marginBottom: 8 },
+  row: { paddingHorizontal: PADDING, gap: GAP, marginBottom: GAP },
   listContent: { paddingBottom: 100 },
 });

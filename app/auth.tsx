@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, Alert, ScrollView, Linking,
 } from 'react-native';
+
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
@@ -15,19 +16,16 @@ type AuthMode = 'phone' | 'otp' | 'name' | 'email';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { login, register, loginWithPhone } = useAuth();
+  const { loginWithPhone } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [pendingUser, setPendingUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [showEmail, setShowEmail] = useState(false);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [tgLoading, setTgLoading] = useState(false);
 
@@ -146,18 +144,7 @@ export default function AuthScreen() {
     }
   };
 
-  const submitEmail = async () => {
-    if (!email || !password) { Alert.alert('Ошибка', 'Заполните все поля'); return; }
-    setLoading(true);
-    try {
-      await login(email, password);
-      router.replace('/(tabs)/profile');
-    } catch (e: any) {
-      Alert.alert('Ошибка', e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const submitEmail = async () => {};
 
   const handleOtpChange = (val: string, idx: number) => {
     const newOtp = [...otp];
@@ -208,22 +195,6 @@ export default function AuthScreen() {
           <Ionicons name="paper-plane-outline" size={18} color="#fff" />
           <Text style={styles.tgBtnText}>{tgLoading ? 'Открываем...' : 'Получить код в Telegram'}</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.altBtn} onPress={() => setShowEmail(!showEmail)}>
-          <Text style={styles.altText}>Войти по email</Text>
-        </TouchableOpacity>
-
-        {showEmail && (
-          <View style={styles.emailForm}>
-            <TextInput style={styles.input} placeholder="Email" placeholderTextColor={Colors.gray}
-              value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-            <TextInput style={styles.input} placeholder="Пароль" placeholderTextColor={Colors.gray}
-              value={password} onChangeText={setPassword} secureTextEntry />
-            <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={submitEmail} disabled={loading}>
-              <Text style={styles.btnText}>{loading ? 'Загрузка...' : 'Войти'}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>← Назад</Text>
@@ -349,7 +320,6 @@ const styles = StyleSheet.create({
   altBtnDisabled: { opacity: 0.5 },
   altText: { color: Colors.gold, fontSize: 14 },
   backBtn: { alignItems: 'center', marginTop: 24 },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 24 },
   backText: { color: Colors.gray, fontSize: 14 },
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 28 },
   otpCell: {
@@ -358,5 +328,4 @@ const styles = StyleSheet.create({
     textAlign: 'center', fontSize: 22, fontWeight: '700', color: Colors.white,
   },
   otpCellFilled: { borderColor: Colors.gold },
-  emailForm: { marginTop: 16, gap: 0 },
 });
