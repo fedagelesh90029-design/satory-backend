@@ -186,12 +186,16 @@ async function syncFromExternalMenu(token, menuId) {
 
 async function syncFromNomenclature(token) {
   console.log('[iiko-api] Синхронизация из номенклатуры...');
+  console.log('[iiko-api] Organization ID:', IIKO_ORGANIZATION_ID);
   const res = await httpsRequest(
     `${BASE_URL}/nomenclature`,
     'POST',
     { organizationId: IIKO_ORGANIZATION_ID },
     { Authorization: `Bearer ${token}` }
   );
+
+  console.log('[iiko-api] Статус ответа:', res.status);
+  console.log('[iiko-api] Ответ (первые 500 символов):', JSON.stringify(res.body).slice(0, 500));
 
   if (res.status !== 200) {
     throw new Error(`iiko nomenclature error (${res.status}): ${JSON.stringify(res.body)}`);
