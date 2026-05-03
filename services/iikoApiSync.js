@@ -17,7 +17,7 @@ const https = require('https');
 const cron = require('node-cron');
 const db = require('../db');
 
-const BASE_URL = (process.env.IIKO_API_URL || 'https://api.iiko.ru/api/1').replace(/\/$/, '');
+const BASE_URL = (process.env.IIKO_API_URL || 'https://api-ru.iiko.services/api/1').replace(/\/$/, '');
 const IIKO_API_LOGIN = process.env.IIKO_API_LOGIN;
 const IIKO_ORGANIZATION_ID = process.env.IIKO_ORGANIZATION_ID;
 
@@ -196,8 +196,6 @@ async function syncFromNomenclature(token) {
   if (res.status !== 200) {
     throw new Error(`iiko nomenclature error (${res.status}): ${JSON.stringify(res.body)}`);
   }
-
-  // iiko возвращает products (товары) и groups (категории)
   const products = res.body.products || [];
   const groups = res.body.groups || [];
 
