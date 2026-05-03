@@ -1355,6 +1355,11 @@ async function renderSync() {
 async function loadSyncStatus() {
   const s=await api('GET','/api/sync/status'); if(!s) return;
   document.getElementById('sync-c').innerHTML=`
+    <div class="card"><h2>🔗 iiko Cloud API</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Синхронизация меню напрямую через iiko Cloud API</p>
+      <button class="btn btn-primary" onclick="syncIikoApi()" id="iiko-api-btn">▶ Синхронизировать меню из iiko</button>
+      <div id="iiko-api-result" style="margin-top:12px"></div>
+    </div>
     <div class="card"><h2>Яндекс.Диск</h2>
       <table><thead><tr><th>Тип</th><th>Последняя синхронизация</th><th>Ошибка</th><th></th></tr></thead>
       <tbody>
@@ -1388,6 +1393,20 @@ async function loadSyncStatus() {
         <tr><td style="color:var(--muted)">Расписание бонусов</td><td><code>${s.config.bonuses_cron}</code></td></tr>
       </tbody></table>
     </div>`;
+}
+
+async function syncIikoApi() {
+  const btn = document.getElementById('iiko-api-btn');
+  const res = document.getElementById('iiko-api-result');
+  btn.disabled = true; btn.textContent = '⏳ Синхронизация...';
+  res.innerHTML = '';
+  const r = await api('POST', '/api/iiko/sync/api');
+  btn.disabled = false; btn.textContent = '▶ Синхронизировать меню из iiko';
+  if (r) {
+    res.innerHTML = `<div style="background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);border-radius:8px;padding:12px;color:#4CAF50">
+      ✅ Готово: +${r.added||0} новых, ~${r.updated||0} обновлено, ×${r.skipped||0} пропущено. Всего: ${r.total||0}
+    </div>`;
+  }
 }
 
 async function runSync(type) {
