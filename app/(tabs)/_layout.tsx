@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
 import { Colors } from '../../constants/theme';
 import { useCart } from '../../context/CartContext';
@@ -24,6 +25,7 @@ function ChatFAB() {
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const router = useRouter();
   const { count } = useCart();
+  const insets = useSafeAreaInsets();
 
   const tabs = [
     { name: 'index',   label: 'Главная',  icon: 'home-outline' },
@@ -37,7 +39,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
       {/* Chat FAB — поверх таббара, правый угол */}
       <ChatFAB />
 
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         {tabs.map((tab, i) => {
           const isFocused = state.index === i;
           return (

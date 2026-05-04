@@ -116,8 +116,13 @@ export default function CatalogScreen() {
         )}
       </View>
 
-      {/* Categories */}
-      <View style={styles.catsRow}>
+      {/* Categories — горизонтальный скролл */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginBottom: 12 }}
+        contentContainerStyle={{ paddingHorizontal: PADDING, gap: GAP, flexDirection: 'row', alignItems: 'center' }}
+      >
         {CATEGORIES.map(cat => {
           const active = category === cat.id;
           return (
@@ -131,7 +136,7 @@ export default function CatalogScreen() {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
       <Text style={styles.count}>{products.length} товаров</Text>
 

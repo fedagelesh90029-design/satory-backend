@@ -180,14 +180,6 @@ export default function AuthScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.btn, loading && styles.btnDisabled]}
-          onPress={sendOtp}
-          disabled={loading}
-        >
-          <Text style={styles.btnText}>{loading ? 'Отправка...' : 'Получить код по SMS'}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={[styles.tgBtn, tgLoading && styles.btnDisabled]}
           onPress={sendOtpViaTelegram}
           disabled={tgLoading}

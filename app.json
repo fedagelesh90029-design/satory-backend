@@ -19,6 +19,7 @@
     },
     "android": {
       "package": "com.satory.tea",
+      "versionCode": 132,
       "icon": "./assets/logo.png",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
