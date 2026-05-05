@@ -1,4 +1,4 @@
-export const API_BASE = 'https://satory-backend-production.up.railway.app/api'; // Railway
+export const API_BASE = 'https://satory-backend.onrender.com/api'; // Render
 // export const API_BASE = 'http://localhost:3000/api'; // локальный
 export const MEDIA_BASE = API_BASE.replace('/api', '');
 
