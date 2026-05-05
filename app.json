@@ -2,7 +2,7 @@
   "expo": {
     "name": "Satori",
     "slug": "satory-tea",
-    "version": "1.3.3",
+    "version": "1.3.4",
     "orientation": "portrait",
     "scheme": "satory",
     "userInterfaceStyle": "dark",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.satory.tea",
-      "versionCode": 134,
+      "versionCode": 135,
       "icon": "./assets/logo.png",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
