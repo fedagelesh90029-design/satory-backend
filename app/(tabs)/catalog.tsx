@@ -199,9 +199,10 @@ const styles = StyleSheet.create({
   catsContent: { paddingHorizontal: 16, gap: 8, alignItems: 'center', flexDirection: 'row' },
   catChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 16, paddingVertical: 9,
+    paddingHorizontal: 14, paddingVertical: 9,
     borderRadius: 22, backgroundColor: Colors.card,
     borderWidth: 1, borderColor: Colors.border,
+    flexShrink: 0,
   },
   catChipActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
   catEmoji: { fontSize: 14 },
