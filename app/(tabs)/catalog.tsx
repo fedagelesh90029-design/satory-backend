@@ -120,7 +120,7 @@ export default function CatalogScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ marginBottom: 12 }}
+        style={{ marginBottom: 12, flexGrow: 0, flexShrink: 0 }}
         contentContainerStyle={{ paddingHorizontal: PADDING, gap: GAP, flexDirection: 'row', alignItems: 'center' }}
       >
         {CATEGORIES.map(cat => {
