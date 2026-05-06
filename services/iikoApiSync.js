@@ -1,15 +1,16 @@
 /**
  * iikoApiSync.js
- * Синхронизация меню с iiko Cloud API.
+ * Синхронизация меню с iiko Cloud API v2 (внешнее меню).
  *
- * Схема авторизации iiko Cloud:
+ * Схема:
  *   POST /api/1/access_token  { apiLogin }  → { token }
- *   POST /api/1/nomenclature  { organizationId }  Bearer token → { products, groups }
+ *   POST /api/2/menu          { organizationIds }  → { externalMenus: [{ id, name }] }
+ *   POST /api/2/menu/by_id    { externalMenuId, organizationIds }  → { productCategories }
  *
  * Переменные окружения:
  *   IIKO_API_LOGIN        — API-логин из личного кабинета iiko (обязательно)
  *   IIKO_ORGANIZATION_ID  — UUID организации (обязательно)
- *   IIKO_API_URL          — базовый URL (по умолчанию https://api.iiko.ru/api/1)
+ *   IIKO_EXTERNAL_MENU_ID — ID внешнего меню (опционально, автоопределяется)
  *   IIKO_SYNC_CRON        — расписание cron (по умолчанию каждые 6 часов)
  */
 
@@ -17,7 +18,10 @@ const https = require('https');
 const cron = require('node-cron');
 const db = require('../db');
 
-const BASE_URL = (process.env.IIKO_API_URL || 'https://api-ru.iiko.services/api/1').replace(/\/$/, '');
+const AUTH_URL = 'https://api-ru.iiko.services/api/1/access_token';
+const MENU_V2_URL = 'https://api-ru.iiko.services/api/2/menu';
+const MENU_BY_ID_URL = 'https://api-ru.iiko.services/api/2/menu/by_id';
+
 const IIKO_API_LOGIN = process.env.IIKO_API_LOGIN;
 const IIKO_ORGANIZATION_ID = process.env.IIKO_ORGANIZATION_ID;
 
@@ -75,7 +79,7 @@ async function getIikoToken() {
     return _tokenCache.token;
   }
 
-  const res = await httpsRequest(`${BASE_URL}/access_token`, 'POST', {
+  const res = await httpsRequest(AUTH_URL, 'POST', {
     apiLogin: IIKO_API_LOGIN,
   });
 
@@ -85,7 +89,7 @@ async function getIikoToken() {
 
   _tokenCache = {
     token: res.body.token,
-    expiresAt: now + 55 * 60 * 1000, // 55 минут
+    expiresAt: now + 55 * 60 * 1000,
   };
 
   console.log('[iiko-api] Токен получен');
@@ -99,35 +103,54 @@ async function syncProductsFromIiko() {
     throw new Error('IIKO_API_LOGIN или IIKO_ORGANIZATION_ID не заданы в .env');
   }
 
-  console.log('[iiko-api] Запуск синхронизации меню...');
+  console.log('[iiko-api] Запуск синхронизации меню v2...');
 
   const token = await getIikoToken();
 
-  // Пробуем внешнее меню если задан IIKO_EXTERNAL_MENU_ID
-  const externalMenuId = process.env.IIKO_EXTERNAL_MENU_ID;
-  if (externalMenuId) {
-    return await syncFromExternalMenu(token, externalMenuId);
+  // Определяем externalMenuId — из env или автоматически
+  let externalMenuId = process.env.IIKO_EXTERNAL_MENU_ID;
+
+  if (!externalMenuId) {
+    console.log('[iiko-api] IIKO_EXTERNAL_MENU_ID не задан, получаем список меню...');
+    const menuListRes = await httpsRequest(
+      MENU_V2_URL,
+      'POST',
+      { organizationIds: [IIKO_ORGANIZATION_ID] },
+      { Authorization: `Bearer ${token}` }
+    );
+
+    if (menuListRes.status !== 200) {
+      throw new Error(`iiko /api/2/menu error (${menuListRes.status}): ${JSON.stringify(menuListRes.body)}`);
+    }
+
+    const menus = menuListRes.body.externalMenus || [];
+    if (!menus.length) {
+      throw new Error('iiko: нет доступных внешних меню для этой организации');
+    }
+
+    externalMenuId = menus[0].id;
+    console.log(`[iiko-api] Найдено меню: "${menus[0].name}" (ID=${externalMenuId})`);
   }
 
-  // Иначе — номенклатура
-  return await syncFromNomenclature(token);
+  return await syncFromExternalMenu(token, externalMenuId);
 }
 
 async function syncFromExternalMenu(token, menuId) {
   console.log(`[iiko-api] Синхронизация из внешнего меню ID=${menuId}...`);
 
   const res = await httpsRequest(
-    `${BASE_URL}/menu/by_id`,
+    MENU_BY_ID_URL,
     'POST',
     { externalMenuId: menuId, organizationIds: [IIKO_ORGANIZATION_ID] },
     { Authorization: `Bearer ${token}` }
   );
 
   if (res.status !== 200) {
-    throw new Error(`iiko menu/by_id error (${res.status}): ${JSON.stringify(res.body)}`);
+    throw new Error(`iiko /api/2/menu/by_id error (${res.status}): ${JSON.stringify(res.body)}`);
   }
 
-  const categories = res.body.itemCategories || [];
+  // API v2 возвращает productCategories (не itemCategories)
+  const categories = res.body.productCategories || res.body.itemCategories || [];
   console.log(`[iiko-api] Получено ${categories.length} категорий из внешнего меню`);
 
   const now = new Date().toISOString();
@@ -144,11 +167,20 @@ async function syncFromExternalMenu(token, menuId) {
       await db.categories.insert({ name: categoryName, is_active: true, sort_order: count, created_at: now });
     }
 
-    for (const item of (cat.items || [])) {
+    for (const item of (cat.items || cat.products || [])) {
       if (!item.name) { skipped++; continue; }
 
-      const price = item.sizePrices?.[0]?.price?.currentPrice ?? item.price ?? 0;
-      const imageUrl = item.imageLinks?.[0] ?? null;
+      // API v2: цена в sizePrices или prices
+      const price = item.sizePrices?.[0]?.price?.currentPrice
+        ?? item.prices?.[0]?.price
+        ?? item.price
+        ?? 0;
+
+      // API v2: изображения в imageLinks или images
+      const imageUrl = item.imageLinks?.[0]
+        ?? item.images?.[0]?.imageUrl
+        ?? null;
+
       const iikoId = item.itemId || item.id;
 
       incomingIds.push(iikoId);
