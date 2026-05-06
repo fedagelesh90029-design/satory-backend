@@ -1,0 +1,24 @@
+[Unit]
+Description=Satori Tea backend
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/app/satory-tea/backend
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/default/satory-backend
+
+[Install]
+WantedBy=multi-user.target
+
+# Файл /etc/default/satory-backend должен содержать:
+# APP_URL=https://your-domain.ru
+# PORT=3000
+# JWT_SECRET=...
+# ADMIN_SECRET=...
+# SMS_PROVIDER=...
+# TG_BOT_TOKEN=...
+# Другие переменные окружения
