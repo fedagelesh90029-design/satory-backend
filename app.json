@@ -1,57 +1,59 @@
 {
-  "expo": {
-    "name": "Satori",
-    "slug": "satory-tea",
-    "version": "1.3.5",
-    "orientation": "portrait",
-    "scheme": "satory",
-    "userInterfaceStyle": "dark",
-    "icon": "./assets/logo.png",
-    "splash": {
-      "image": "./assets/Satory.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A0A0A"
-    },
-    "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "com.satory.tea",
-      "icon": "./assets/logo.png"
-    },
-    "android": {
-      "package": "com.satory.tea",
-      "versionCode": 136,
-      "icon": "./assets/logo.png",
-      "googleServicesFile": "./google-services.json",
-      "navigationBarColor": "#141414",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#0A0A0A"
-      }
-    },
-    "plugins": [
-      "expo-router",
-      "expo-asset",
-      "expo-font",
-      "expo-splash-screen",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/Satory.png",
-          "color": "#D4A017",
-          "defaultChannel": "default"
-        }
-      ]
-    ],
-    "web": {
-      "bundler": "metro",
-      "output": "single",
-      "backgroundColor": "#0A0A0A"
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "3d014938-f9a2-4a6c-90e7-c63c2e0a6b6c"
-      }
-    }
-  }
+    "expo":  {
+                 "name":  "Satori",
+                 "slug":  "satory-tea",
+                 "version":  "1.3.6",
+                 "orientation":  "portrait",
+                 "scheme":  "satory",
+                 "userInterfaceStyle":  "dark",
+                 "icon":  "./assets/Satory.png",
+                 "splash":  {
+                                "image":  "./assets/Satory.png",
+                                "resizeMode":  "contain",
+                                "backgroundColor":  "#0A0A0A"
+                            },
+                 "ios":  {
+                             "supportsTablet":  false,
+                             "bundleIdentifier":  "com.satory.tea",
+                             "icon":  "./assets/Satory.png"
+                         },
+                 "android":  {
+                                 "package":  "com.satory.tea",
+                                 "versionCode":  137,
+                                 "icon":  "./assets/Satory.png",
+                                 "googleServicesFile":  "./google-services.json",
+                                 "navigationBarColor":  "#141414",
+                                 "adaptiveIcon":  {
+                                                      "foregroundImage":  "./assets/Satory.png",
+                                                      "backgroundColor":  "#0A0A0A"
+                                                  }
+                             },
+                 "plugins":  [
+                                 "expo-router",
+                                 "expo-asset",
+                                 "expo-font",
+                                 "expo-splash-screen",
+                                 [
+                                     "expo-notifications",
+                                     {
+                                         "icon":  "./assets/Satory.png",
+                                         "color":  "#D4A017",
+                                         "defaultChannel":  "default"
+                                     }
+                                 ]
+                             ],
+                 "web":  {
+                             "bundler":  "metro",
+                             "output":  "single",
+                             "backgroundColor":  "#0A0A0A"
+                         },
+                 "extra":  {
+                               "router":  {
+
+                                          },
+                               "eas":  {
+                                           "projectId":  "3d014938-f9a2-4a6c-90e7-c63c2e0a6b6c"
+                                       }
+                           }
+             }
 }
