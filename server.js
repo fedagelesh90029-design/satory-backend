@@ -53,6 +53,11 @@ app.use('/api/categories', async (req, res) => {
 // Статические файлы для кассира
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Явная отдача главной страницы
+app.get(['/', '/index.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Статические файлы для загрузок (фото товаров и т.д.)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
