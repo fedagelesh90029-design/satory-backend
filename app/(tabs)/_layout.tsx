@@ -94,12 +94,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    // Закрашиваем safe area снизу тёмным цветом
+    paddingBottom: 0,
   },
   tabBar: {
     flexDirection: 'row',
     height: 60,
     paddingBottom: 8,
     paddingTop: 4,
+    backgroundColor: Colors.card,
   },
   tabItem: {
     flex: 1,

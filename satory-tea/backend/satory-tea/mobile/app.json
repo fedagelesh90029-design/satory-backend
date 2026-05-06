@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Satori",
+    "slug": "satory-tea",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "satory",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.satory.tea"
+    },
+    "android": {
+      "package": "com.satory.tea"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-font"
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "backgroundColor": "#0A0A0A"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3d014938-f9a2-4a6c-90e7-c63c2e0a6b6c"
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+============================================================
+IIKO API INTEGRATION LOGS
+Date: 2026-04-27T17:27:22.091Z
+App: Satory Tea Mobile Backend
+Server: https://satory-backend-production.up.railway.app
+Organization ID: d8ad09fc-0c90-47e2-b715-a4f1b2d2b8b4
+============================================================
+
+[1] iiko API STATUS
+HTTP 200
+{
+  "mode": "api",
+  "api_configured": true,
+  "connected": true,
+  "configured": true,
+  "last_products_sync": null,
+  "last_bonuses_sync": null,
+  "products_file_exists": false,
+  "bonuses_file_exists": false
+}
+
+[2] SYNC ATTEMPT via /api/1/nomenclature
+Request: POST /api/iiko/sync/api
+Headers: x-admin-secret: ***
+HTTP 500
+{
+  "error": "iiko menu/by_id error (401): {\"correlationId\":\"2e2c9a02-84d4-41d5-b371-80231aa844c1\",\"errorDescription\":\"Right api/1/menu/by_id is not allowed for this ApiLogin.\"}"
+}
+
+[3] SYNC HISTORY (last 5 attempts)
+  [1] 2026-04-27T11:16:59.751Z | type: products_iiko_api | status: success | rows: 0
+  [2] 2026-04-27T11:15:41.551Z | type: products_iiko_api | status: success | rows: 0
+  [3] 2026-04-23T15:45:01.938Z | type: products_iiko_api | status: success | rows: 0
+  [4] 2026-04-23T14:26:21.025Z | type: products_iiko_api | status: success | rows: 0
+  [5] 2026-04-23T12:00:01.274Z | type: products_iiko_api | status: success | rows: 0
+
+============================================================
+END OF LOGS
+============================================================

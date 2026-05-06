@@ -23,6 +23,9 @@ if command -v pm2 >/dev/null 2>&1; then
   if pm2 list | grep -q "satory-backend"; then
     echo "Restarting satory-backend..."
     pm2 restart satory-backend --update-env
+  elif pm2 list | grep -q "satory\b"; then
+    echo "Restarting existing satory process..."
+    pm2 restart satory --update-env
   else
     echo "Starting satory-backend..."
     pm2 start server.js --name satory-backend --update-env
