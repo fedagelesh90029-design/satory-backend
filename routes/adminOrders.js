@@ -1,60 +1,32 @@
-/**
- * routes/adminOrders.js
- * Управление заказами — только для администратора.
- */
-const router    = require('express').Router();
-const db        = require('../db');
-const adminAuth = require('../middleware/adminAuth');
-const { sendPushToUser } = require('../services/pushService');
+const router = require('express').Router();
+const db = require('../db');
 
-router.use(adminAuth);
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'satory_admin_2026';
 
-const STATUS_LABELS = {
-  pending:   'Ожидает',
-  confirmed: 'Подтверждён',
-  ready:     'Готов',
-  completed: 'Выполнен',
-  cancelled: 'Отменён',
-};
+function adminAuth(req, res, next) {
+  const secret = req.headers['x-admin-secret'];
+  if (secret !== ADMIN_SECRET) return res.status(403).json({ error: 'Нет доступа' });
+  next();
+}
 
-// GET /api/admin/orders — все заказы с данными пользователей
-router.get('/', async (req, res) => {
+// GET /api/admin/orders
+router.get('/', adminAuth, async (req, res) => {
   const orders = await db.orders.find({});
   orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-  // Подтягиваем имена и телефоны пользователей
-  const enriched = await Promise.all(orders.map(async o => {
-    const user = await db.users.findOne({ _id: o.user_id });
-    return {
-      ...o,
-      user_name:  user?.name  || '—',
-      user_phone: user?.phone || '—',
-    };
-  }));
-
-  res.json(enriched);
+  res.json(orders);
 });
 
-// PUT /api/admin/orders/:id/status — изменить статус заказа
-router.put('/:id/status', async (req, res) => {
-  const { status } = req.body;
-  if (!STATUS_LABELS[status]) return res.status(400).json({ error: 'Неверный статус' });
-
+// PUT /api/admin/orders/:id
+router.put('/:id', adminAuth, async (req, res) => {
+  await db.orders.update({ _id: req.params.id }, { $set: req.body });
   const order = await db.orders.findOne({ _id: req.params.id });
-  if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+  res.json(order);
+});
 
-  await db.orders.update({ _id: req.params.id }, { $set: { status, updated_at: new Date().toISOString() } });
-
-  // Push пользователю об изменении статуса
-  if (order.user_id && status !== 'pending') {
-    sendPushToUser(db, order.user_id,
-      '📦 Статус заказа изменён',
-      `Заказ #${req.params.id.slice(-6).toUpperCase()}: ${STATUS_LABELS[status]}`,
-      { screen: 'orders' }
-    ).catch(() => {});
-  }
-
-  res.json({ success: true, status });
+// DELETE /api/admin/orders/:id
+router.delete('/:id', adminAuth, async (req, res) => {
+  await db.orders.remove({ _id: req.params.id });
+  res.json({ success: true });
 });
 
 module.exports = router;

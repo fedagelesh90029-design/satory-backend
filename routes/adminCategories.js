@@ -1,56 +1,40 @@
-/**
- * routes/adminCategories.js
- * CRUD справочника категорий.
- */
-const router    = require('express').Router();
-const db        = require('../db');
-const adminAuth = require('../middleware/adminAuth');
+const router = require('express').Router();
+const db = require('../db');
 
-router.use(adminAuth);
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'satory_admin_2026';
+
+function adminAuth(req, res, next) {
+  const secret = req.headers['x-admin-secret'];
+  if (secret !== ADMIN_SECRET) return res.status(403).json({ error: 'Нет доступа' });
+  next();
+}
 
 // GET /api/admin/categories
-router.get('/', async (_req, res) => {
+router.get('/', adminAuth, async (req, res) => {
   const cats = await db.categories.find({});
   cats.sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
   res.json(cats);
 });
 
 // POST /api/admin/categories
-router.post('/', async (req, res) => {
-  const { name, is_active, sort_order } = req.body;
-  if (!name?.trim()) return res.status(400).json({ error: 'name обязателен' });
-  const existing = await db.categories.findOne({ name: name.trim() });
-  if (existing) return res.status(400).json({ error: 'Категория с таким именем уже существует' });
-  const count = await db.categories.count({});
+router.post('/', adminAuth, async (req, res) => {
   const cat = await db.categories.insert({
-    name:       name.trim(),
-    is_active:  is_active !== false,
-    sort_order: sort_order !== undefined ? Number(sort_order) : count,
+    ...req.body,
+    is_active: req.body.is_active !== false,
     created_at: new Date().toISOString(),
   });
-  res.status(201).json(cat);
+  res.json(cat);
 });
 
 // PUT /api/admin/categories/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
+  await db.categories.update({ _id: req.params.id }, { $set: req.body });
   const cat = await db.categories.findOne({ _id: req.params.id });
-  if (!cat) return res.status(404).json({ error: 'Не найдено' });
-  const { name, is_active, sort_order } = req.body;
-  await db.categories.update({ _id: req.params.id }, { $set: {
-    ...(name !== undefined       ? { name: name.trim() }          : {}),
-    ...(is_active !== undefined  ? { is_active: Boolean(is_active) } : {}),
-    ...(sort_order !== undefined ? { sort_order: Number(sort_order) } : {}),
-  }});
-  res.json(await db.categories.findOne({ _id: req.params.id }));
+  res.json(cat);
 });
 
 // DELETE /api/admin/categories/:id
-router.delete('/:id', async (req, res) => {
-  const cat = await db.categories.findOne({ _id: req.params.id });
-  if (!cat) return res.status(404).json({ error: 'Не найдено' });
-  // Проверяем есть ли товары с этой категорией
-  const count = await db.products.count({ category: cat.name });
-  if (count > 0) return res.status(400).json({ error: `Нельзя удалить: ${count} товаров используют эту категорию` });
+router.delete('/:id', adminAuth, async (req, res) => {
   await db.categories.remove({ _id: req.params.id });
   res.json({ success: true });
 });

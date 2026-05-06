@@ -1,24 +1,18 @@
-/**
- * routes/adminAuth.js
- * POST /api/admin/login — выдаёт JWT для администратора.
- */
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 
-const ADMIN_LOGIN    = process.env.ADMIN_LOGIN    || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'satory2026';
-const JWT_SECRET     = process.env.JWT_SECRET     || 'satory_secret_2026';
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'satory_admin_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'satory_secret_2026';
 
-router.post('/', (req, res) => {
-  const { login, password } = req.body;
-  if (!login || !password)
-    return res.status(400).json({ error: 'login и password обязательны' });
-
-  if (login !== ADMIN_LOGIN || password !== ADMIN_PASSWORD)
-    return res.status(401).json({ error: 'Неверный логин или пароль' });
-
-  const token = jwt.sign({ is_admin: true, login }, JWT_SECRET, { expiresIn: '30d' });
-  res.json({ token, expires_in: '30d' });
+// POST /api/admin/login
+router.post('/', async (req, res) => {
+  const { password, secret } = req.body;
+  const provided = password || secret;
+  if (provided !== ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Неверный пароль' });
+  }
+  const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+  res.json({ success: true, token });
 });
 
 module.exports = router;
