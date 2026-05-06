@@ -77,10 +77,9 @@ app.listen(PORT, () => {
   console.log(`Satori backend running on port ${PORT}`);
   console.log(`[env] SMS_PROVIDER=${process.env.SMS_PROVIDER || 'НЕ ЗАДАН'}, MTS_API_KEY=${process.env.MTS_API_KEY ? process.env.MTS_API_KEY.slice(0,8)+'...' : 'НЕ ЗАДАН'}`);
 
-  // Автоустановка Telegram webhook при старте
-  if (process.env.TG_BOT_TOKEN && process.env.APP_URL) {
-    const { setWebhook } = require('./services/telegramBot');
-    const webhookUrl = `${process.env.APP_URL}/api/telegram/webhook`;
-    setWebhook(webhookUrl).catch(e => console.error('[telegram] Ошибка установки webhook:', e.message));
+  // Запуск Telegram polling (вместо webhook — работает без HTTPS)
+  if (process.env.TG_BOT_TOKEN) {
+    const { startPolling } = require('./services/telegramBot');
+    startPolling().catch(e => console.error('[telegram] Ошибка запуска polling:', e.message));
   }
 });
