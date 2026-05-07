@@ -149,8 +149,8 @@ async function syncFromExternalMenu(token, menuId) {
     throw new Error(`iiko /api/2/menu/by_id error (${res.status}): ${JSON.stringify(res.body)}`);
   }
 
-  // API v2 возвращает productCategories (не itemCategories)
-  const categories = res.body.productCategories || res.body.itemCategories || [];
+  // API v2 возвращает itemCategories (с товарами) или productCategories (только названия)
+  const categories = res.body.itemCategories || res.body.productCategories || [];
   console.log(`[iiko-api] Получено ${categories.length} категорий из внешнего меню`);
 
   const now = new Date().toISOString();
