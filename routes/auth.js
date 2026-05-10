@@ -46,7 +46,6 @@ router.post('/send-otp-telegram', async (req, res) => {
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const expires_at = Date.now() + OTP_TTL;
-  const crypto = require('crypto');
   const hash = crypto.randomBytes(16).toString('hex');
 
   const existing = await db.otp_codes.findOne({ phone: normalized });
@@ -96,7 +95,9 @@ router.post('/verify-otp', async (req, res) => {
     return res.status(400).json({ error: 'Неверный код' });
   }
 
-  // Удаляем использованный OTP
+  // Удаляем использованный OTP (сохраняем данные Telegram перед удалением)
+  const tgChatId = otpRecord.tg_chat_id || null;
+  const tgUsername = otpRecord.tg_username || null;
   await db.otp_codes.remove({ phone: normalized });
 
   // Ищем или создаём пользователя
@@ -114,8 +115,13 @@ router.post('/verify-otp', async (req, res) => {
       visits: 0,
       loyalty_status: 'Бронза',
       name_set: false,
+      // Привязываем Telegram если пользователь входил через бота
+      ...(tgChatId ? { telegram_chat_id: tgChatId, telegram_username: tgUsername } : {}),
       created_at: new Date().toISOString(),
     });
+    if (tgChatId) {
+      console.log(`[auth] Новый пользователь ${normalized} — Telegram chat_id=${tgChatId} сохранён`);
+    }
   }
 
   const token = jwt.sign({ id: user._id, phone: normalized }, SECRET, { expiresIn: '30d' });

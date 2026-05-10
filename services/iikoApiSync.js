@@ -170,16 +170,20 @@ async function syncFromExternalMenu(token, menuId) {
     for (const item of (cat.items || cat.products || [])) {
       if (!item.name) { skipped++; continue; }
 
-      // API v2: цена в sizePrices или prices
-      const price = item.sizePrices?.[0]?.price?.currentPrice
+      // API v2: цена в itemSizes[0].prices.price (основной формат)
+      // или в sizePrices[0].price.currentPrice (старый формат)
+      const price = item.itemSizes?.[0]?.prices?.price
+        ?? item.itemSizes?.[0]?.prices?.[0]?.price
+        ?? item.sizePrices?.[0]?.price?.currentPrice
         ?? item.prices?.[0]?.price
         ?? item.price
         ?? 0;
 
-      // API v2: изображения в imageLinks или images
-      const imageUrl = item.imageLinks?.[0]
-        ?? item.images?.[0]?.imageUrl
-        ?? null;
+      // API v2: изображения в itemSizes[0].buttonImageUrl
+      const imageUrl = item.itemSizes?.[0]?.buttonImageUrl
+        || item.imageLinks?.[0]
+        || item.images?.[0]?.imageUrl
+        || null;
 
       const iikoId = item.itemId || item.id;
 
@@ -187,9 +191,10 @@ async function syncFromExternalMenu(token, menuId) {
 
       const existing = await db.products.findOne({ iiko_id: iikoId });
       if (existing) {
-        await db.products.update({ iiko_id: iikoId }, {
-          $set: { name: item.name, category: categoryName, price, description: item.description || '', image_url: imageUrl, active: true, updated_at: now }
-        });
+        // Не перезаписываем image_url если оно уже есть вручную — только обновляем из iiko если там появилось новое
+        const updateFields = { name: item.name, category: categoryName, price, description: item.description || '', active: true, updated_at: now };
+        if (imageUrl) updateFields.image_url = imageUrl; // обновляем фото только если iiko прислал
+        await db.products.update({ iiko_id: iikoId }, { $set: updateFields });
         updated++;
       } else {
         await db.products.insert({
@@ -214,129 +219,6 @@ async function syncFromExternalMenu(token, menuId) {
   await db.sync_log.insert({ type: 'products_iiko_api', status: 'success', rows_processed: incomingIds.length, created_at: now, detail: { added, updated, skipped } });
   console.log(`[iiko-api] Готово: +${added} новых, ~${updated} обновлено, ×${skipped} пропущено`);
   return { added, updated, skipped, total: incomingIds.length };
-}
-
-async function syncFromNomenclature(token) {
-  console.log('[iiko-api] Синхронизация из номенклатуры...');
-  console.log('[iiko-api] Organization ID:', IIKO_ORGANIZATION_ID);
-  const res = await httpsRequest(
-    `${BASE_URL}/nomenclature`,
-    'POST',
-    { organizationId: IIKO_ORGANIZATION_ID },
-    { Authorization: `Bearer ${token}` }
-  );
-
-  console.log('[iiko-api] Статус ответа:', res.status);
-  console.log('[iiko-api] Ответ (первые 500 символов):', JSON.stringify(res.body).slice(0, 500));
-
-  if (res.status !== 200) {
-    throw new Error(`iiko nomenclature error (${res.status}): ${JSON.stringify(res.body)}`);
-  }
-  const products = res.body.products || [];
-  const groups = res.body.groups || [];
-
-  // Строим карту id → название категории
-  const groupMap = {};
-  function flattenGroups(arr) {
-    for (const g of arr) {
-      groupMap[g.id] = g.name;
-      if (g.children?.length) flattenGroups(g.children);
-    }
-  }
-  flattenGroups(groups);
-
-  console.log(`[iiko-api] Получено ${products.length} товаров, ${Object.keys(groupMap).length} категорий`);
-
-  const now = new Date().toISOString();
-  let added = 0, updated = 0, skipped = 0;
-  const incomingIds = [];
-
-  for (const item of products) {
-    // Пропускаем удалённые и без названия
-    if (item.isDeleted || !item.name) { skipped++; continue; }
-
-    // Цена: берём первый размер или поле price
-    const price =
-      item.sizePrices?.[0]?.price?.currentPrice ??
-      item.price?.currentPrice ??
-      0;
-
-    const categoryName = groupMap[item.parentGroup] || 'Прочее';
-    const imageUrl = item.imageLinks?.[0] ?? null;
-
-    incomingIds.push(item.id);
-
-    // Автосоздание категории
-    const catExists = await db.categories.findOne({ name: categoryName });
-    if (!catExists) {
-      const count = await db.categories.count({});
-      await db.categories.insert({
-        name: categoryName,
-        is_active: true,
-        sort_order: count,
-        created_at: now,
-      });
-    }
-
-    const existing = await db.products.findOne({ iiko_id: item.id });
-
-    if (existing) {
-      await db.products.update(
-        { iiko_id: item.id },
-        {
-          $set: {
-            name: item.name,
-            category: categoryName,
-            price,
-            description: item.description || '',
-            image_url: imageUrl,
-            active: true,
-            updated_at: now,
-            // price_override и category_override не трогаем
-          },
-        }
-      );
-      updated++;
-    } else {
-      await db.products.insert({
-        iiko_id: item.id,
-        name: item.name,
-        category: categoryName,
-        price,
-        description: item.description || '',
-        image_url: imageUrl,
-        active: true,
-        is_manual: false,
-        price_override: null,
-        category_override: null,
-        rating: 0,
-        reviews_count: 0,
-        badge: null,
-        created_at: now,
-        updated_at: now,
-      });
-      added++;
-    }
-  }
-
-  // Мягкое удаление товаров, которых больше нет в iiko
-  const allActive = await db.products.find({ active: true, is_manual: { $ne: true } });
-  for (const p of allActive) {
-    if (p.iiko_id && !incomingIds.includes(p.iiko_id)) {
-      await db.products.update({ _id: p._id }, { $set: { active: false, updated_at: now } });
-    }
-  }
-
-  await db.sync_log.insert({
-    type: 'products_iiko_api',
-    status: 'success',
-    rows_processed: products.length,
-    created_at: now,
-    detail: { added, updated, skipped },
-  });
-
-  console.log(`[iiko-api] Готово: +${added} новых, ~${updated} обновлено, ×${skipped} пропущено`);
-  return { added, updated, skipped, total: products.length };
 }
 
 // ─── Ручной запуск синхронизации (для роута /api/iiko/sync/api) ───────────────
