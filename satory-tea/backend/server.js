@@ -1,11 +1,5 @@
-// Railway/Render передаёт переменные через process.env напрямую
-// dotenv нужен только для локальной разработки
-if (process.env.NODE_ENV !== 'production') {
-  try { require('dotenv').config(); } catch(e) {}
-} else {
-  // На продакшне пробуем dotenv как fallback
-  try { require('dotenv').config(); } catch(e) {}
-}
+// Загружаем .env явно по пути относительно этого файла
+try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch(e) {}
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -72,10 +66,9 @@ app.listen(PORT, () => {
   console.log(`Satori backend running on port ${PORT}`);
   console.log(`[env] SMS_PROVIDER=${process.env.SMS_PROVIDER || 'НЕ ЗАДАН'}, MTS_API_KEY=${process.env.MTS_API_KEY ? process.env.MTS_API_KEY.slice(0,8)+'...' : 'НЕ ЗАДАН'}`);
 
-  // Автоустановка Telegram webhook при старте
-  if (process.env.TG_BOT_TOKEN && process.env.APP_URL) {
-    const { setWebhook } = require('./services/telegramBot');
-    const webhookUrl = `${process.env.APP_URL}/api/telegram/webhook`;
-    setWebhook(webhookUrl).catch(e => console.error('[telegram] Ошибка установки webhook:', e.message));
+  // Запуск Telegram polling (работает без HTTPS/webhook)
+  if (process.env.TG_BOT_TOKEN) {
+    const { startPolling } = require('./services/telegramBot');
+    startPolling().catch(e => console.error('[telegram] Ошибка запуска polling:', e.message));
   }
 });

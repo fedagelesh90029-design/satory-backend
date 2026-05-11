@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/theme';
 import { apiFetch } from '../constants/api';
+import { useAuth } from '../context/AuthContext';
 import { SatoryLogoIcon } from '../components/SatoryLogo';
 
 interface Message {
@@ -27,6 +28,7 @@ const now = () => new Date().toLocaleTimeString('ru', { hour: '2-digit', minute:
 
 export default function ChatScreen() {
   const router = useRouter();
+  const { token } = useAuth();
   const listRef = useRef<FlatList>(null);
   const sessionId = useRef(`session_${Date.now()}`);
   const [messages, setMessages] = useState<Message[]>([
@@ -50,7 +52,7 @@ export default function ChatScreen() {
       const data = await apiFetch('/chat/message', {
         method: 'POST',
         body: JSON.stringify({ message: text, session_id: sessionId.current }),
-      });
+      }, token);
       const botMsg: Message = { id: (Date.now() + 1).toString(), text: data.reply, from: 'bot', time: now() };
       setMessages(m => [...m, botMsg]);
     } catch {
@@ -67,7 +69,7 @@ export default function ChatScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.botAvatar}>
-            <SatoryLogoIcon size={28} color={Colors.gold} />
+            <SatoryLogoIcon size={28} />
           </View>
           <View>
             <Text style={styles.botName}>Чайный советник ✨</Text>
@@ -92,7 +94,7 @@ export default function ChatScreen() {
           <View style={[styles.msgRow, item.from === 'user' && styles.msgRowUser]}>
             {item.from === 'bot' && (
               <View style={styles.botAvatarSmall}>
-                <SatoryLogoIcon size={20} color={Colors.gold} />
+                <SatoryLogoIcon size={20} />
               </View>
             )}
             <View style={[styles.bubble, item.from === 'user' ? styles.bubbleUser : styles.bubbleBot]}>

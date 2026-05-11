@@ -19,11 +19,11 @@ const storage = {
 };
 import { apiFetch } from '../constants/api';
 import { registerPushToken, unregisterPushToken } from '../utils/pushNotifications';
-
 interface User {
   id: number;
   name: string;
   email: string;
+  phone?: string;
   bonus_points: number;
   bonus_balance?: number;
   visits: number;

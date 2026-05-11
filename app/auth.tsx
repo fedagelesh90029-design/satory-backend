@@ -12,7 +12,7 @@ import { apiFetch } from '../constants/api';
 import { SatoryLogoFull } from '../components/SatoryLogo';
 import { showWelcomeNotification } from '../utils/notifications';
 
-type AuthMode = 'phone' | 'otp' | 'name' | 'email';
+type AuthMode = 'phone' | 'otp' | 'name';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -28,6 +28,7 @@ export default function AuthScreen() {
   const [countdown, setCountdown] = useState(0);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [tgLoading, setTgLoading] = useState(false);
+  const [sentVia, setSentVia] = useState<'sms' | 'telegram'>('sms');
 
   const otpRefs = useRef<(TextInput | null)[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -65,6 +66,7 @@ export default function AuthScreen() {
     try {
       const resp = await apiFetch('/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone }) });
       setDevCode(resp.dev_code || null);
+      setSentVia('sms');
       setMode('otp');
       startCountdown();
     } catch (e: any) {
@@ -85,11 +87,12 @@ export default function AuthScreen() {
         await Linking.openURL(resp.tg_link);
         Alert.alert(
           'Откройте Telegram',
-          'Нажмите "Старт" в боте Satori Tea — он пришлёт вам код подтверждения.',
+          'Нажмите «Старт» в боте Satori Tea — он пришлёт вам код подтверждения.',
           [{ text: 'OK' }]
         );
       }
       setDevCode(resp.dev_code || null);
+      setSentVia('telegram');
       setMode('otp');
       startCountdown();
     } catch (e: any) {
@@ -144,7 +147,7 @@ export default function AuthScreen() {
     }
   };
 
-  const submitEmail = async () => {};
+
 
   const handleOtpChange = (val: string, idx: number) => {
     const newOtp = [...otp];
@@ -209,7 +212,9 @@ export default function AuthScreen() {
         </View>
 
         <Text style={styles.heading}>Введите код</Text>
-        <Text style={styles.sub}>Отправили SMS на {phone}</Text>
+        <Text style={styles.sub}>
+          {sentVia === 'telegram' ? `Отправили код в Telegram на номер ${phone}` : `Отправили SMS на ${phone}`}
+        </Text>
 
         {devCode && (
           <View style={{ backgroundColor: Colors.card, borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: Colors.gold + '44' }}>
@@ -313,6 +318,7 @@ const styles = StyleSheet.create({
   altText: { color: Colors.gold, fontSize: 14 },
   backBtn: { alignItems: 'center', marginTop: 24 },
   backText: { color: Colors.gray, fontSize: 14 },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 28 },
   otpCell: {
     width: 46, height: 56, borderRadius: 12,
