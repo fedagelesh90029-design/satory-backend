@@ -4,6 +4,16 @@ meta:
     version: 20
 build:
   context: satory-tea/backend
+  artifacts:
+    - server.js
+    - db.js
+    - package.json
+    - routes/**
+    - services/**
+    - middleware/**
+    - public/**
+    - uploads/**
+    - data/**
 run:
   command: node server.js
   containerPort: 3000
