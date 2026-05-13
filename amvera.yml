@@ -1,0 +1,10 @@
+meta:
+  environment: node
+  tool: npm
+  version: 20
+build:
+  context: satory-tea/backend
+run:
+  command: node server.js
+  containerPort: 3000
+  persistenceMount: /data
