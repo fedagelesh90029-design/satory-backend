@@ -2,14 +2,14 @@
  * Установка webhook для Telegram бота
  */
 
-const RAILWAY_URL = 'https://satory-backend-production.up.railway.app';
-const ADMIN_SECRET = 'satory_admin_2026';
+const VPS_URL = 'http://72.56.245.188';
+const ADMIN_SECRET = 'satori';
 
 async function setupTelegram() {
   console.log('🤖 Устанавливаем webhook для Telegram бота...\n');
 
   try {
-    const response = await fetch(`${RAILWAY_URL}/api/telegram/setup?secret=${ADMIN_SECRET}`);
+    const response = await fetch(`${VPS_URL}/api/telegram/setup?secret=${ADMIN_SECRET}`);
     const data = await response.json();
     
     console.log(`Статус: ${response.status} ${response.statusText}\n`);

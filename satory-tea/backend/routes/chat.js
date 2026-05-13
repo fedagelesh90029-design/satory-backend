@@ -4,7 +4,6 @@ const jwt = require('jsonwebtoken');
 
 const SECRET = process.env.JWT_SECRET;
 const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY;
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
 // Опциональная авторизация — чат доступен всем
 function authOptional(req, res, next) {
@@ -79,60 +78,13 @@ function cerebrasRequest(message) {
   });
 }
 
-// ─── Запрос к DeepSeek AI ────────────────────────────────────────────────────
-
-function deepseekRequest(message) {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({
-      model: 'deepseek-chat',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: message },
-      ],
-      max_tokens: 500,
-    });
-
-    const req = https.request({
-      hostname: 'api.deepseek.com',
-      path: '/v1/chat/completions',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', d => data += d);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          if (res.statusCode !== 200) {
-            reject(new Error(`DeepSeek ${res.statusCode}: ${json.error?.message || data.slice(0, 100)}`));
-            return;
-          }
-          const reply = json.choices?.[0]?.message?.content;
-          resolve(reply || null);
-        } catch (e) {
-          reject(new Error(`DeepSeek parse error: ${data.slice(0, 100)}`));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.setTimeout(20000, () => { req.destroy(); reject(new Error('DeepSeek timeout')); });
-    req.write(body);
-    req.end();
-  });
-}
-
 // ─── POST /api/chat/message ───────────────────────────────────────────────────
 
 router.post('/message', authOptional, async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: 'Сообщение обязательно' });
 
-  // 1. Пытаемся Cerebras (он быстрее)
+  // 1. Используем Cerebras
   if (CEREBRAS_API_KEY) {
     try {
       console.log('[chat] Cerebras запрос:', message.slice(0, 80));
@@ -146,21 +98,7 @@ router.post('/message', authOptional, async (req, res) => {
     }
   }
 
-  // 2. Fallback на DeepSeek
-  if (DEEPSEEK_API_KEY) {
-    try {
-      console.log('[chat] DeepSeek запрос:', message.slice(0, 80));
-      const reply = await deepseekRequest(message);
-      if (reply) {
-        console.log('[chat] DeepSeek ответ получен');
-        return res.json({ reply });
-      }
-    } catch (e) {
-      console.error('[chat] DeepSeek error:', e.message);
-    }
-  }
-
-  // 3. Крайний случай — ключевые слова
+  // 2. Крайний случай — ключевые слова
   const lw = message.toLowerCase();
 
   if (lw.includes('привет') || lw.includes('здравств')) {
