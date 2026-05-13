@@ -20,11 +20,12 @@
     },
     "android": {
       "package": "com.satory.tea",
-      "versionCode": 137,
+      "versionCode": 138,
       "icon": "./assets/Satory.png",
       "googleServicesFile": "./google-services.json",
       "navigationBarColor": "#141414",
       "usesCleartextTraffic": true,
+      "networkSecurityConfig": "./assets/network_security_config.xml",
       "adaptiveIcon": {
         "foregroundImage": "./assets/Satory.png",
         "backgroundColor": "#0A0A0A"
