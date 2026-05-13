@@ -1,4 +1,5 @@
-export const API_BASE = 'http://72.56.245.188/api'; // VPS Timeweb (Port 80)
+export const API_BASE = 'https://sat-fedoro.amvera.run/api'; // Amvera Cloud
+// export const API_BASE = 'http://72.56.245.188/api'; // VPS Timeweb (Port 80)
 // export const API_BASE = 'http://localhost:3000/api'; // локальный
 export const MEDIA_BASE = API_BASE.replace('/api', '');
 
