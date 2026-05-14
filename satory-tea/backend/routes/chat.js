@@ -1,126 +1,103 @@
 const router = require('express').Router();
-const https = require('https');
-const jwt = require('jsonwebtoken');
+const Groq = require('groq-sdk');
 
-const SECRET = process.env.JWT_SECRET;
-const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
-// Опциональная авторизация — чат доступен всем
-function authOptional(req, res, next) {
-  const auth = req.headers.authorization;
-  if (auth && auth.startsWith('Bearer ') && SECRET) {
-    try {
-      req.user = jwt.verify(auth.slice(7), SECRET);
-    } catch {
-      req.user = null;
-    }
-  } else {
-    req.user = null;
+const SYSTEM_PROMPT = `Ты — чайный советник чайного дома «Satori». Твоё имя — Советник Satori.
+
+О чайном доме:
+- Специализация: китайский чай, особенно пуэры (шу и шэн), улуны, белый чай
+- Проводим чайные церемонии, мастер-классы по гунфу-ча, дегустации пуэров
+- Есть программа лояльности: Бронза (0-499 баллов), Серебро (500-999), Золото (1000+)
+- Бонусы начисляются при каждой покупке — кассир сканирует QR-код из приложения
+- 1 балл = 1 рубль при списании
+
+Твои задачи:
+- Помогать выбрать чай под вкус, настроение, опыт
+- Рассказывать о видах чая, способах заваривания, чайной культуре
+- Отвечать на вопросы о программе лояльности и бонусах
+- Информировать о мероприятиях (дегустации, мастер-классы, церемонии)
+- Помогать с вопросами по приложению
+
+Правила:
+- Отвечай только на русском языке
+- Будь дружелюбным и тёплым, как настоящий чайный мастер
+- Если не знаешь точного ответа — честно скажи и предложи обратиться в поддержку
+- Не придумывай конкретные цены и даты — скажи проверить в каталоге или разделе событий
+- Ответы краткие и по делу, без лишней воды
+- Используй эмодзи умеренно 🍵`;
+
+const sessions = new Map();
+const SESSION_TTL = 30 * 60 * 1000;
+
+function getSession(sessionId) {
+  const s = sessions.get(sessionId);
+  if (s && Date.now() - s.lastActive < SESSION_TTL) {
+    s.lastActive = Date.now();
+    return s.messages;
   }
-  next();
+  const messages = [];
+  sessions.set(sessionId, { messages, lastActive: Date.now() });
+  return messages;
 }
 
-const SYSTEM_PROMPT = `Ты — помощник чайного магазина Satori Tea в Адлере (ул. Кирова, 26).
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, s] of sessions.entries()) {
+    if (now - s.lastActive > SESSION_TTL) sessions.delete(id);
+  }
+}, 10 * 60 * 1000);
 
-Твоя задача:
-- Помогать выбрать чай (у нас китайский чай: пуэр, улун, зелёный, белый, красный)
-- Рассказывать о сортах и способах заварки
-- Отвечать на вопросы о программе лояльности и бонусах
-- Помогать с оформлением заказов
+router.post('/message', async (req, res) => {
+  const { message, session_id } = req.body;
+  if (!message?.trim()) return res.status(400).json({ error: 'Нет сообщения' });
 
-Отвечай кратко, дружелюбно и по делу на русском языке. Используй эмодзи 🍵 где уместно.`;
+  if (!GROQ_API_KEY) {
+    return res.json({ reply: getFallbackReply(message), timestamp: new Date().toISOString() });
+  }
 
-// ─── Запрос к Cerebras AI ────────────────────────────────────────────────────
+  const sid = session_id || 'default';
+  const history = getSession(sid);
+  history.push({ role: 'user', content: message });
 
-function cerebrasRequest(message) {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({
-      model: 'llama3.1-8b',
+  try {
+    const groq = new Groq({ apiKey: GROQ_API_KEY });
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: message },
+        ...history.slice(-10),
       ],
-      temperature: 0.7,
       max_tokens: 500,
+      temperature: 0.7,
     });
 
-    const req = https.request({
-      hostname: 'api.cerebras.ai',
-      path: '/v1/chat/completions',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${CEREBRAS_API_KEY}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', d => data += d);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          if (res.statusCode !== 200) {
-            reject(new Error(`Cerebras ${res.statusCode}: ${json.error?.message || data.slice(0, 100)}`));
-            return;
-          }
-          const reply = json.choices?.[0]?.message?.content;
-          resolve(reply || null);
-        } catch (e) {
-          reject(new Error(`Cerebras parse error: ${data.slice(0, 100)}`));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Cerebras timeout')); });
-    req.write(body);
-    req.end();
-  });
-}
-
-// ─── POST /api/chat/message ───────────────────────────────────────────────────
-
-router.post('/message', authOptional, async (req, res) => {
-  const { message } = req.body;
-  if (!message) return res.status(400).json({ error: 'Сообщение обязательно' });
-
-  // 1. Используем Cerebras
-  if (CEREBRAS_API_KEY) {
-    try {
-      console.log('[chat] Cerebras запрос:', message.slice(0, 80));
-      const reply = await cerebrasRequest(message);
-      if (reply) {
-        console.log('[chat] Cerebras ответ получен');
-        return res.json({ reply });
-      }
-    } catch (e) {
-      console.error('[chat] Cerebras error:', e.message);
-    }
+    const reply = completion.choices[0]?.message?.content || 'Не удалось получить ответ';
+    history.push({ role: 'assistant', content: reply });
+    res.json({ reply, timestamp: new Date().toISOString(), session_id: sid });
+  } catch (e) {
+    console.error('[Groq error]', e.message);
+    res.json({ reply: getFallbackReply(message), timestamp: new Date().toISOString() });
   }
-
-  // 2. Крайний случай — ключевые слова
-  const lw = message.toLowerCase();
-
-  if (lw.includes('привет') || lw.includes('здравств')) {
-    return res.json({ reply: 'Здравствуйте! 🍵 Я помощник Satori Tea. Помогу выбрать чай, расскажу о сортах или отвечу на вопросы о программе лояльности. Чем могу помочь?' });
-  }
-  if (lw.includes('цен') || lw.includes('стоимость') || lw.includes('сколько')) {
-    return res.json({ reply: 'Цены на наш чай варьируются от 300₽ до 3000₽ за 100г в зависимости от сорта:\n\n🍵 Шу пуэр — от 400₽\n🍵 Шэн пуэр — от 500₽\n🍵 Улун — от 600₽\n🍵 Белый чай — от 700₽\n\nТочные цены смотрите в каталоге!' });
-  }
-  if (lw.includes('пуэр')) {
-    return res.json({ reply: 'Пуэр — постферментированный китайский чай. У нас два вида:\n\n🟤 Шу пуэр (тёмный) — мягкий, землистый вкус, помогает пищеварению\n🟢 Шэн пуэр (светлый) — свежий, терпкий, бодрит\n\nЗаваривать 95°C, первая заварка 5–7 секунд. Какой интересует?' });
-  }
-  if (lw.includes('улун') || lw.includes('оолонг')) {
-    return res.json({ reply: 'Улун — полуферментированный чай, золотая середина между зелёным и красным 🌿\n\nПопулярные сорта:\n• Да Хун Пао — насыщенный, с нотками карамели\n• Те Гуань Инь — цветочный, освежающий\n\nЗаваривать 90–95°C, проливами по 10–15 секунд.' });
-  }
-  if (lw.includes('бонус') || lw.includes('лояльность') || lw.includes('скидк')) {
-    return res.json({ reply: 'В Satori Tea действует программа лояльности! 💛\n\n• За каждую покупку начисляются бонусы\n• 1 бонус = 1 рубль при следующей покупке\n• Статусы: Бронза → Серебро → Золото\n• Чем выше статус, тем больше бонусов\n\nПосмотреть баланс можно в профиле приложения!' });
-  }
-  if (lw.includes('заказ') || lw.includes('доставк') || lw.includes('купить')) {
-    return res.json({ reply: 'Оформить заказ можно:\n\n📱 В мобильном приложении — добавьте товары в корзину\n🏪 В нашей чайной: ул. Кирова, 26, Адлер\n\nСамовывоз бесплатно. Доставку пока не делаем, но вы можете забрать заказ в чайной!' });
-  }
-
-  return res.json({ reply: 'Я помощник Satori Tea 🍵\n\nМогу помочь с:\n• Выбором чая и рассказать о сортах\n• Ценами и наличием\n• Программой лояльности\n• Оформлением заказа\n\nЗадайте ваш вопрос!' });
 });
+
+router.post('/reset', (req, res) => {
+  const { session_id } = req.body;
+  if (session_id) sessions.delete(session_id);
+  res.json({ success: true });
+});
+
+function getFallbackReply(message) {
+  const lower = message.toLowerCase();
+  if (lower.includes('пуэр') && lower.includes('новичк')) return 'Для начала рекомендую Шу Пуэр — он мягче и земляной. Начните с "Золотого Дворца" 2019 года. 🍵';
+  if (lower.includes('шу')) return 'Шу Пуэр — ферментированный чай с насыщенным вкусом земли и древесины. Заваривайте при 95-100°C, 5-7г на 150мл.';
+  if (lower.includes('шэн')) return 'Шэн Пуэр — живой чай, который меняется с годами. Молодой шэн свежий и терпкий, выдержанный — глубокий и сложный.';
+  if (lower.includes('церемони') || lower.includes('гунфу')) return 'Чайная церемония гунфу-ча — искусство заваривания в маленьком чайнике. Много коротких проливов, каждый раскрывает новые грани вкуса.';
+  if (lower.includes('завар')) return 'Для пуэра: вода 95-100°C, 5-7г на 100мл, первый пролив 10-15 секунд, каждый следующий +5 секунд.';
+  if (lower.includes('мероприяти') || lower.includes('событи')) return 'Ближайшие мероприятия смотрите в разделе «События» приложения. Там можно сразу записаться! 📅';
+  if (lower.includes('бонус') || lower.includes('баланс')) return 'Бонусы начисляются при каждой покупке. Покажите QR-код кассиру — он найдёт вас в системе. Баланс обновляется в профиле.';
+  if (lower.includes('улун')) return 'Улун — полуферментированный чай между зелёным и чёрным. Наш "Дикий Улун" с медовым послевкусием отлично подойдёт для знакомства.';
+  return 'Я чайный советник Satori 🍵 Спросите меня о видах чая, заваривании, мероприятиях или программе лояльности.';
+}
 
 module.exports = router;

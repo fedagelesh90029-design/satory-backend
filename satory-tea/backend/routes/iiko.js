@@ -4,10 +4,10 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../db');
 const { parseProductsFile, parseBonusesFile, calcLoyaltyStatus } = require('../services/iikoFileParser');
+const adminAuth = require('../middleware/adminAuth');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'iiko');
 const LAST_SYNC_FILE = path.join(UPLOAD_DIR, 'last_sync.json');
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'satory_admin_2026';
 
 // Убедимся что папка существует
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -33,25 +33,6 @@ const upload = multer({
     cb(Object.assign(new Error('Допустимые форматы: .xlsx, .xls, .csv'), { status: 400 }));
   },
 });
-
-// ─── Middleware ───────────────────────────────────────────────────────────────
-function adminOnly(req, res, next) {
-  // Способ 1: x-admin-secret
-  if (req.headers['x-admin-secret'] === ADMIN_SECRET) return next();
-
-  // Способ 2: JWT Bearer токен
-  const header = req.headers.authorization;
-  if (header) {
-    const token = header.split(' ')[1];
-    try {
-      const jwt = require('jsonwebtoken');
-      const payload = jwt.verify(token, process.env.JWT_SECRET || 'satory_secret_2026');
-      if (payload.is_admin) return next();
-    } catch {}
-  }
-
-  return res.status(403).json({ error: 'Доступ запрещён' });
-}
 
 // ─── Sync helpers ─────────────────────────────────────────────────────────────
 async function runProductSync(filePath) {
@@ -191,7 +172,7 @@ module.exports.runBonusSync = runBonusSync;
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 // POST /api/iiko/upload/products
-router.post('/upload/products', adminOnly, (req, res) => {
+router.post('/upload/products', adminAuth, (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Файл превышает 10 МБ' });
@@ -208,7 +189,7 @@ router.post('/upload/products', adminOnly, (req, res) => {
 });
 
 // POST /api/iiko/upload/bonuses
-router.post('/upload/bonuses', adminOnly, (req, res) => {
+router.post('/upload/bonuses', adminAuth, (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Файл превышает 10 МБ' });
@@ -225,7 +206,7 @@ router.post('/upload/bonuses', adminOnly, (req, res) => {
 });
 
 // POST /api/iiko/sync/products
-router.post('/sync/products', adminOnly, async (req, res) => {
+router.post('/sync/products', adminAuth, async (req, res) => {
   const files = fs.readdirSync(UPLOAD_DIR).filter(f => f.startsWith('products_latest'));
   if (!files.length) return res.status(404).json({ error: 'Файл выгрузки не найден. Загрузите файл через POST /api/iiko/upload/products' });
   try {
@@ -237,7 +218,7 @@ router.post('/sync/products', adminOnly, async (req, res) => {
 });
 
 // POST /api/iiko/sync/bonuses
-router.post('/sync/bonuses', adminOnly, async (req, res) => {
+router.post('/sync/bonuses', adminAuth, async (req, res) => {
   const files = fs.readdirSync(UPLOAD_DIR).filter(f => f.startsWith('bonuses_latest'));
   if (!files.length) return res.status(404).json({ error: 'Файл выгрузки не найден. Загрузите файл через POST /api/iiko/upload/bonuses' });
   try {
@@ -282,7 +263,7 @@ router.get('/status', (req, res) => {
 });
 
 // POST /api/iiko/sync/api — ручной запуск синхронизации через iiko API
-router.post('/sync/api', adminOnly, async (req, res) => {
+router.post('/sync/api', adminAuth, async (req, res) => {
   try {
     const { triggerManualSync } = require('../services/iikoApiSync');
     const result = await triggerManualSync();

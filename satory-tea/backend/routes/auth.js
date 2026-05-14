@@ -7,7 +7,7 @@ const { normalizePhone } = require('../services/iikoFileParser');
 const { sendSms } = require('./auth_helpers');
 
 const SECRET = process.env.JWT_SECRET || 'satory_secret_2026';
-const OTP_TTL = 5 * 60 * 1000;
+const OTP_TTL = 5 * 60 * 1000; // 5 минут
 
 // ─── POST /api/auth/send-otp ──────────────────────────────────────────────────
 router.post('/send-otp', async (req, res) => {
@@ -32,12 +32,8 @@ router.post('/send-otp', async (req, res) => {
   res.json({ success: true, phone: normalized, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
 });
 
-// ─── POST /api/auth/send-otp-telegram ────────────────────────────────────────
+// ─── POST /api/auth/send-otp-telegram ─────────────────────────────────────────
 router.post('/send-otp-telegram', async (req, res) => {
-  if (!process.env.TG_BOT_TOKEN) {
-    return res.status(503).json({ error: 'Telegram не настроен на сервере' });
-  }
-
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ error: 'Укажите номер телефона' });
 
@@ -45,9 +41,10 @@ router.post('/send-otp-telegram', async (req, res) => {
   if (!normalized) return res.status(400).json({ error: 'Неверный формат номера телефона' });
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
-  const expires_at = Date.now() + OTP_TTL;
   const hash = crypto.randomBytes(16).toString('hex');
+  const expires_at = Date.now() + OTP_TTL;
 
+  // Сохраняем OTP с hash для привязки
   const existing = await db.otp_codes.findOne({ phone: normalized });
   if (existing) {
     await db.otp_codes.update({ phone: normalized }, { $set: { code, expires_at, attempts: 0, tg_link_hash: hash } });
@@ -55,28 +52,21 @@ router.post('/send-otp-telegram', async (req, res) => {
     await db.otp_codes.insert({ phone: normalized, code, expires_at, attempts: 0, tg_link_hash: hash });
   }
 
-  const { getBotUsername, sendTelegramMessage } = require('../services/telegramBot');
-
-  // Если у пользователя уже привязан Telegram — отправляем напрямую
-  const user = await db.users.findOne({ phone: normalized });
-  if (user && user.telegram_chat_id) {
-    await sendTelegramMessage(user.telegram_chat_id,
-      `🔐 Ваш код подтверждения Satori Tea:\n\n<b>${code}</b>\n\n⏱ Действителен 5 минут.`
-    );
-    const p = normalized;
-    const phone_masked = p.length >= 4 ? p.slice(0, 3) + '***' + p.slice(-2) : p;
-    return res.json({ success: true, method: 'telegram_direct', phone_masked });
+  const { getBotUsername, sendOtpViaTelegram } = require('../services/telegramBot');
+  const botUsername = await getBotUsername();
+  
+  // Пробуем отправить напрямую если уже привязан
+  const sent = await sendOtpViaTelegram(normalized, `Ваш код подтверждения Satori Tea: ${code}`);
+  if (sent) {
+    return res.json({ success: true, method: 'direct', phone: normalized, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
   }
 
-  // Иначе — ссылка для первичной привязки
-  const botUsername = await getBotUsername();
-  if (!botUsername) return res.status(500).json({ error: 'Не удалось получить имя бота' });
-
+  // Если не привязан — даём ссылку
   const tg_link = `https://t.me/${botUsername}?start=${hash}`;
-  res.json({ success: true, method: 'telegram_link', tg_link, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
+  res.json({ success: true, method: 'link', tg_link, bot_username: botUsername, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
 });
 
-
+// ─── POST /api/auth/verify-otp ────────────────────────────────────────────────
 router.post('/verify-otp', async (req, res) => {
   const { phone, code, name } = req.body;
   if (!phone || !code) return res.status(400).json({ error: 'phone и code обязательны' });
@@ -95,9 +85,7 @@ router.post('/verify-otp', async (req, res) => {
     return res.status(400).json({ error: 'Неверный код' });
   }
 
-  // Удаляем использованный OTP (сохраняем данные Telegram перед удалением)
-  const tgChatId = otpRecord.tg_chat_id || null;
-  const tgUsername = otpRecord.tg_username || null;
+  // Удаляем использованный OTP
   await db.otp_codes.remove({ phone: normalized });
 
   // Ищем или создаём пользователя
@@ -115,13 +103,8 @@ router.post('/verify-otp', async (req, res) => {
       visits: 0,
       loyalty_status: 'Бронза',
       name_set: false,
-      // Привязываем Telegram если пользователь входил через бота
-      ...(tgChatId ? { telegram_chat_id: tgChatId, telegram_username: tgUsername } : {}),
       created_at: new Date().toISOString(),
     });
-    if (tgChatId) {
-      console.log(`[auth] Новый пользователь ${normalized} — Telegram chat_id=${tgChatId} сохранён`);
-    }
   }
 
   const token = jwt.sign({ id: user._id, phone: normalized }, SECRET, { expiresIn: '30d' });

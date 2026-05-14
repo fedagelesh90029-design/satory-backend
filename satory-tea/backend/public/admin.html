@@ -180,8 +180,8 @@ code{background:var(--surface2);border:1px solid var(--border);padding:2px 7px;b
       <div class="logo-sub">Панель управления</div>
     </div>
     <a onclick="showPage('events')"     id="nav-events">События</a>
-    <a onclick="showPage('news')"       id="nav-news">Новости</a>
     <a onclick="showPage('products')"   id="nav-products">Товары</a>
+    <a onclick="showPage('categories')" id="nav-categories">Категории</a>
     <a onclick="showPage('gallery')"    id="nav-gallery">Галерея</a>
     <a onclick="showPage('orders')"     id="nav-orders">Заказы</a>
     <a onclick="showPage('cashier')"    id="nav-cashier">Касса</a>
@@ -243,587 +243,88 @@ function logout() { TOKEN=''; localStorage.removeItem('admin_token'); document.g
 function boot() { document.getElementById('login-screen').style.display='none'; document.getElementById('app').style.display='flex'; showPage('events'); }
 
 function showPage(p) {
-  ['events','news','products','gallery','orders','cashier','settings','sync'].forEach(x => document.getElementById(`nav-${x}`)?.classList.toggle('active', x===p));
-  if (p==='events')   renderEvents();
-  if (p==='news')     renderNews();
-  if (p==='products') renderProducts();
-  if (p==='gallery')  renderGallery();
-  if (p==='orders')   renderOrders();
-  if (p==='cashier')  renderCashier();
-  if (p==='settings') renderSettings();
-  if (p==='sync')     renderSync();
+  ['events','products','categories','gallery','orders','cashier','settings','sync'].forEach(x => document.getElementById(`nav-${x}`)?.classList.toggle('active', x===p));
+  if (p==='events')     renderEvents();
+  if (p==='products')   renderProducts();
+  if (p==='categories') renderCategories();
+  if (p==='gallery')    renderGallery();
+  if (p==='orders')     renderOrders();
+  if (p==='cashier')    renderCashier();
+  if (p==='settings')   renderSettings();
+  if (p==='sync')       renderSync();
 }
 
 // ════════════════════════════════════════════════════════════
 // EVENTS
 // ════════════════════════════════════════════════════════════
-let _eventsAutoRefresh = null;
-
 async function renderEvents() {
-  // Автообновление каждые 30 секунд
-  if (_eventsAutoRefresh) clearInterval(_eventsAutoRefresh);
-  _eventsAutoRefresh = setInterval(() => {
-    if (document.getElementById('nav-events')?.classList.contains('active')) {
-      api('GET', '/api/admin/events').then(events => {
-        if (events) renderEventsTable(events);
-      });
-    } else {
-      clearInterval(_eventsAutoRefresh);
-    }
-  }, 30000);
   document.getElementById('main').innerHTML = `
-    <div class="page-header">
-      <h1>📅 События</h1>
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-ghost btn-sm" onclick="showSchedulerStats()">📊 Планировщик</button>
-        <button class="btn btn-primary" onclick="openEventForm()">+ Добавить</button>
-      </div>
-    </div>
+    <div class="page-header"><h1>📅 События</h1><button class="btn btn-primary" onclick="openEventForm()">+ Добавить</button></div>
     <div class="card" id="ev-wrap"><p class="empty">Загрузка...</p></div>`;
   const events = await api('GET', '/api/admin/events');
   if (!events) return;
-  renderEventsTable(events);
-}
-
-function renderEventsTable(events) {
   const wrap = document.getElementById('ev-wrap');
-  if (!wrap) return;
   if (!events.length) { wrap.innerHTML = '<p class="empty">Событий пока нет</p>'; return; }
   wrap.innerHTML = `<table>
-    <thead><tr><th>Название</th><th>Дата</th><th>Цена</th><th>Мест</th><th>Публикация</th><th>Push</th><th>Статус</th><th></th></tr></thead>
-    <tbody>${events.map(e => {
-      // Бейдж публикации
-      let publishBadge = '';
-      if (e.scheduled_publish_time && !e.is_published) {
-        const publishDate = new Date(e.scheduled_publish_time);
-        const now = new Date();
-        if (publishDate <= now) {
-          publishBadge = `<span class="badge badge-orange" title="Ожидает публикации">⏳ Ожидает</span>`;
-        } else {
-          publishBadge = `<span class="badge badge-blue" title="Запланирована на ${publishDate.toLocaleString('ru')}">📅 ${publishDate.toLocaleDateString('ru')}</span>`;
-        }
-      } else if (e.is_published !== false) {
-        publishBadge = `<span class="badge badge-green" title="Опубликовано">✓ Опубликовано</span>`;
-      } else {
-        publishBadge = `<span class="badge badge-red" title="Черновик">📝 Черновик</span>`;
-      }
-
-      // Бейдж push-уведомлений
-      let pushBadge = '';
-      if (e.scheduled_push_time) {
-        if (e.push_sent) {
-          pushBadge = `<span class="badge badge-green" title="Push отправлен ${fmtDate(e.last_push_sent)}">✓ Отправлен</span>`;
-        } else {
-          const pushDate = new Date(e.scheduled_push_time);
-          const now = new Date();
-          if (pushDate <= now) {
-            pushBadge = `<span class="badge badge-orange" title="Ожидает отправки">⏳ Ожидает</span>`;
-          } else {
-            pushBadge = `<span class="badge badge-blue" title="Запланирован на ${pushDate.toLocaleString('ru')}">📅 ${pushDate.toLocaleDateString('ru')}</span>`;
-          }
-        }
-      } else {
-        pushBadge = `<span class="badge badge-red">—</span>`;
-      }
-      
-      return `<tr>
-        <td><strong>${e.title}</strong>${e.image_url ? `<br><img src="${e.image_url}" class="img-thumb" style="margin-top:4px">` : ''}</td>
-        <td>${fmtDate(e.date)}</td><td>${fmtPrice(e.price)}</td>
-        <td>${e.seats_taken||0}/${e.seats_total||'∞'}</td>
-        <td>${publishBadge}</td>
-        <td>${pushBadge}</td>
-        <td><span class="badge ${e.is_active!==false?'badge-green':'badge-red'}">${e.is_active!==false?'Активно':'Скрыто'}</span></td>
-        <td style="white-space:nowrap">
-          <button class="btn btn-ghost btn-sm" onclick="openEventForm('${e._id}')">✏️</button>
-          <button class="btn btn-ghost btn-sm" onclick="openPublishForm('${e._id}')" title="Управление публикацией">📋</button>
-          <button class="btn btn-ghost btn-sm" onclick="openPushForm('${e._id}')" title="Push-уведомления">📱</button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleEvent('${e._id}')">${e.is_active!==false?'🙈':'👁️'}</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e._id}')">🗑️</button>
-        </td></tr>`;
-    }).join('')}</tbody></table>`;
+    <thead><tr><th>Название</th><th>Дата</th><th>Цена</th><th>Мест</th><th>Статус</th><th></th></tr></thead>
+    <tbody>${events.map(e => `<tr>
+      <td><strong>${e.title}</strong>${e.image_url ? `<br><img src="${e.image_url}" class="img-thumb" style="margin-top:4px">` : ''}</td>
+      <td>${fmtDate(e.date)}</td><td>${fmtPrice(e.price)}</td>
+      <td>${e.seats_taken||0}/${e.seats_total||'∞'}</td>
+      <td><span class="badge ${e.is_active!==false?'badge-green':'badge-red'}">${e.is_active!==false?'Активно':'Скрыто'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openEventForm('${e._id}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleEvent('${e._id}')">${e.is_active!==false?'🙈':'👁️'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e._id}')">🗑️</button>
+      </td></tr>`).join('')}</tbody></table>`;
 }
 
 async function openEventForm(id='') {
   let e = {};
   if (id) { e = await api('GET', `/api/admin/events/${id}`); if (!e) return; }
-  
-  // Форматируем дату и время для input datetime-local
-  const now = new Date();
-  const defaultTime = new Date(now.getTime() + 60 * 60 * 1000); // +1 час
-  const defaultTimeStr = defaultTime.toISOString().slice(0, 16);
-  
-  const scheduledTime = e.scheduled_push_time 
-    ? new Date(e.scheduled_push_time).toISOString().slice(0, 16)
-    : '';
-
-  const scheduledPublishTime = e.scheduled_publish_time 
-    ? new Date(e.scheduled_publish_time).toISOString().slice(0, 16)
-    : '';
-
-  openModal(`<div class="modal" style="width:900px">
+  openModal(`<div class="modal">
     <button class="modal-close" onclick="closeModal()">×</button>
     <h3>${id ? 'Редактировать' : 'Новое'} событие</h3>
-    
-    <!-- Основная информация -->
-    <div style="border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:20px">
-      <h4 style="font-size:14px;margin-bottom:16px;color:var(--muted);text-transform:uppercase">Основная информация</h4>
-      <div class="form-group"><label>Название *</label><input id="ef-title" value="${e.title||''}"></div>
-      <div class="form-row">
-        <div class="form-group"><label>Дата *</label><input id="ef-date" type="date" value="${e.date?e.date.slice(0,10):''}"></div>
-        <div class="form-group"><label>Цена (₽)</label><input id="ef-price" type="number" value="${e.price||0}"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Всего мест</label><input id="ef-seats" type="number" value="${e.seats_total||0}"></div>
-        <div class="form-group"><label>Статус</label>
-          <select id="ef-active"><option value="true" ${e.is_active!==false?'selected':''}>Активно</option><option value="false" ${e.is_active===false?'selected':''}>Скрыто</option></select>
-        </div>
-      </div>
-      <div class="form-group"><label>Описание (HTML)</label><textarea id="ef-desc" rows="4">${e.description||''}</textarea></div>
-      <div class="form-group"><label>Условия участия</label><textarea id="ef-cond" rows="2">${e.conditions||''}</textarea></div>
-      <div class="form-group"><label>Загрузить фото</label><input type="file" id="ef-img" accept="image/*"></div>
-      ${e.image_url?`<div class="form-group"><img src="${e.image_url}" style="max-width:200px;border-radius:8px"></div>`:''}
-      <div class="form-group"><label>или URL фото</label><input id="ef-imgurl" value="${e.image_url||''}" placeholder="https://..."></div>
+    <div class="form-group"><label>Название *</label><input id="ef-title" value="${e.title||''}"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Дата *</label><input id="ef-date" type="date" value="${e.date?e.date.slice(0,10):''}"></div>
+      <div class="form-group"><label>Цена (₽)</label><input id="ef-price" type="number" value="${e.price||0}"></div>
     </div>
-    
-    <!-- Публикация -->
-    <div style="border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:20px">
-      <h4 style="font-size:14px;margin-bottom:16px;color:var(--muted);text-transform:uppercase">📋 Публикация</h4>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Статус публикации</label>
-          <select id="ef-publish-status" onchange="togglePublishFields()">
-            <option value="now" ${(!e.scheduled_publish_time && e.is_published !== false) ? 'selected' : ''}>Опубликовать сейчас</option>
-            <option value="scheduled" ${e.scheduled_publish_time ? 'selected' : ''}>Запланировать публикацию</option>
-            <option value="draft" ${e.is_published === false && !e.scheduled_publish_time ? 'selected' : ''}>Сохранить как черновик</option>
-          </select>
-        </div>
-        <div class="form-group" id="ef-publish-time-group" style="display:${e.scheduled_publish_time ? 'block' : 'none'}">
-          <label>Время публикации</label>
-          <input id="ef-publish-time" type="datetime-local" value="${scheduledPublishTime}">
-          <small style="color:var(--muted);font-size:12px;margin-top:4px;display:block">
-            Например: через неделю в 5:00 утра
-          </small>
-        </div>
+    <div class="form-row">
+      <div class="form-group"><label>Всего мест</label><input id="ef-seats" type="number" value="${e.seats_total||0}"></div>
+      <div class="form-group"><label>Статус</label>
+        <select id="ef-active"><option value="true" ${e.is_active!==false?'selected':''}>Активно</option><option value="false" ${e.is_active===false?'selected':''}>Скрыто</option></select>
       </div>
-      ${e.scheduled_publish_time && !e.is_published ? `
-      <div style="background:rgba(33,150,243,.1);border:1px solid rgba(33,150,243,.3);border-radius:8px;padding:12px;color:#64B5F6;font-size:13px">
-        📅 Публикация запланирована на ${new Date(e.scheduled_publish_time).toLocaleString('ru')}
-      </div>` : ''}
-      ${e.is_published === false && !e.scheduled_publish_time ? `
-      <div style="background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);border-radius:8px;padding:12px;color:var(--gold);font-size:13px">
-        📝 Событие сохранено как черновик (не видно пользователям)
-      </div>` : ''}
     </div>
-    
-    <!-- Push-уведомления -->
-    <div>
-      <h4 style="font-size:14px;margin-bottom:16px;color:var(--muted);text-transform:uppercase">📱 Push-уведомления</h4>
-      <div class="form-group">
-        <label>Текст уведомления</label>
-        <input id="ef-push-template" value="${e.push_template || `🍵 Новое событие: ${e.title || ''}`}" placeholder="Текст push-уведомления">
-        <small style="color:var(--muted);font-size:12px;margin-top:4px;display:block">
-          Оставьте пустым, если не нужно отправлять push-уведомления
-        </small>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Целевая аудитория</label>
-          <select id="ef-push-target">
-            <option value="all" ${e.push_target === 'all' ? 'selected' : ''}>Все пользователи</option>
-            <option value="registered" ${e.push_target === 'registered' ? 'selected' : ''}>Только зарегистрированные</option>
-            <option value="vip" ${e.push_target === 'vip' ? 'selected' : ''}>VIP пользователи</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Запланировать отправку</label>
-          <input id="ef-push-schedule" type="datetime-local" value="${scheduledTime}">
-          <small style="color:var(--muted);font-size:12px;margin-top:4px;display:block">
-            Оставьте пустым для отправки при публикации
-          </small>
-        </div>
-      </div>
-      ${e.push_sent ? `
-      <div style="background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);border-radius:8px;padding:12px;color:#4CAF50;font-size:13px">
-        ✅ Push-уведомление отправлено ${fmtDate(e.last_push_sent)} (получателей: ${e.last_push_count || 0})
-      </div>` : ''}
-    </div>
-    
-    <div class="form-actions" style="margin-top:24px">
+    <div class="form-group"><label>Описание (HTML)</label><textarea id="ef-desc" rows="4">${e.description||''}</textarea></div>
+    <div class="form-group"><label>Условия участия</label><textarea id="ef-cond" rows="2">${e.conditions||''}</textarea></div>
+    <div class="form-group"><label>Загрузить фото</label><input type="file" id="ef-img" accept="image/*"></div>
+    ${e.image_url?`<div class="form-group"><img src="${e.image_url}" style="max-width:200px;border-radius:8px"></div>`:''}
+    <div class="form-group"><label>или URL фото</label><input id="ef-imgurl" value="${e.image_url||''}" placeholder="https://..."></div>
+    <div class="form-actions">
       <button class="btn btn-primary" onclick="saveEvent('${id}')">💾 Сохранить</button>
       <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
-    </div>
-  </div>`);
+    </div></div>`);
 }
 
 async function saveEvent(id) {
   const title = document.getElementById('ef-title').value.trim();
   const date  = document.getElementById('ef-date').value;
   if (!title || !date) { toast('Заполните название и дату','err'); return; }
-  
   let image_url = document.getElementById('ef-imgurl').value.trim();
   const f = document.getElementById('ef-img').files[0];
-  if (f) { 
-    const fd=new FormData(); 
-    fd.append('image',f); 
-    const u=await api('POST','/api/admin/upload/image?type=event',fd,true); 
-    if(u) image_url=u.url; 
-  }
-  
-  // Собираем данные push-уведомлений
-  const pushTemplate = document.getElementById('ef-push-template').value.trim();
-  const pushTarget = document.getElementById('ef-push-target').value;
-  const pushSchedule = document.getElementById('ef-push-schedule').value;
-  
-  // Собираем данные публикации
-  const publishStatus = document.getElementById('ef-publish-status').value;
-  const publishTime = document.getElementById('ef-publish-time').value;
-  
-  let publishData = {};
-  if (publishStatus === 'now') {
-    publishData = { is_published: true, scheduled_publish_time: null, auto_publish: false };
-  } else if (publishStatus === 'scheduled') {
-    if (!publishTime) {
-      toast('Укажите время публикации', 'err');
-      return;
-    }
-    publishData = { 
-      is_published: false, 
-      scheduled_publish_time: new Date(publishTime).toISOString(),
-      auto_publish: true 
-    };
-  } else if (publishStatus === 'draft') {
-    publishData = { is_published: false, scheduled_publish_time: null, auto_publish: false };
-  }
-  
-  const body = { 
-    title, 
-    date, 
-    price: +document.getElementById('ef-price').value||0,
+  if (f) { const fd=new FormData(); fd.append('image',f); const u=await api('POST','/api/admin/upload/image?type=event',fd,true); if(u) image_url=u.url; }
+  const body = { title, date, price: +document.getElementById('ef-price').value||0,
     seats_total: +document.getElementById('ef-seats').value||0,
     description: document.getElementById('ef-desc').value,
     conditions: document.getElementById('ef-cond').value,
-    is_active: document.getElementById('ef-active').value==='true', 
-    image_url,
-    // Поля для push-уведомлений
-    push_template: pushTemplate,
-    push_target: pushTarget,
-    scheduled_push_time: pushSchedule ? new Date(pushSchedule).toISOString() : null,
-    // Поля для публикации
-    ...publishData
-  };
-  
+    is_active: document.getElementById('ef-active').value==='true', image_url };
   const r = id ? await api('PUT',`/api/admin/events/${id}`,body) : await api('POST','/api/admin/events',body);
-  if (r) { 
-    closeModal(); 
-    
-    // Показываем соответствующие сообщения
-    if (publishStatus === 'scheduled') {
-      const scheduleDate = new Date(publishTime);
-      toast(`Событие создано. Публикация запланирована на ${scheduleDate.toLocaleString('ru')}`);
-    } else if (publishStatus === 'draft') {
-      toast('Событие сохранено как черновик');
-    } else {
-      toast(id ? 'Событие обновлено' : 'Событие создано и опубликовано');
-    }
-    
-    // Если push-уведомление запланировано, показываем информацию
-    if (pushTemplate && pushSchedule) {
-      const scheduleDate = new Date(pushSchedule);
-      toast(`Push запланирован на ${scheduleDate.toLocaleString('ru')}`);
-    }
-    
-    renderEvents(); 
-  }
-}
-
-function togglePublishFields() {
-  const status = document.getElementById('ef-publish-status').value;
-  const timeGroup = document.getElementById('ef-publish-time-group');
-  timeGroup.style.display = status === 'scheduled' ? 'block' : 'none';
-}
-
-// Форма управления публикацией
-async function openPublishForm(eventId) {
-  const event = await api('GET', `/api/admin/events/${eventId}`);
-  if (!event) return;
-  
-  const now = new Date();
-  const defaultTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000); // +7 дней +5 часов (5 утра)
-  defaultTime.setHours(5, 0, 0, 0); // Устанавливаем точно 5:00
-  const defaultTimeStr = defaultTime.toISOString().slice(0, 16);
-  
-  const scheduledTime = event.scheduled_publish_time 
-    ? new Date(event.scheduled_publish_time).toISOString().slice(0, 16)
-    : defaultTimeStr;
-
-  openModal(`<div class="modal" style="width:600px">
-    <button class="modal-close" onclick="closeModal()">×</button>
-    <h3>📋 Управление публикацией: ${event.title}</h3>
-    
-    ${event.is_published ? `
-    <div style="background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);border-radius:8px;padding:12px;margin-bottom:16px;color:#4CAF50">
-      ✅ Событие опубликовано и видно пользователям
-    </div>` : `
-    <div style="background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);border-radius:8px;padding:12px;margin-bottom:16px;color:var(--gold)">
-      📝 Событие не опубликовано (черновик)
-    </div>`}
-    
-    <div class="form-group">
-      <label>Запланировать публикацию</label>
-      <input id="publish-schedule-time" type="datetime-local" value="${scheduledTime}">
-      <small style="color:var(--muted);font-size:12px;margin-top:4px;display:block">
-        Например: через неделю в 5:00 утра
-      </small>
-    </div>
-    
-    <div class="form-actions">
-      <button class="btn btn-primary" onclick="publishEventNow('${eventId}')">📤 Опубликовать сейчас</button>
-      <button class="btn btn-ghost" onclick="schedulePublish('${eventId}')">📅 Запланировать</button>
-      ${event.is_published ? `<button class="btn btn-danger" onclick="unpublishEvent('${eventId}')">📝 Снять с публикации</button>` : ''}
-      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
-    </div>
-    
-    ${event.scheduled_publish_time && !event.is_published ? `
-    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:16px">
-      <h4 style="font-size:14px;margin-bottom:10px;color:var(--muted)">Текущий план:</h4>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;font-size:13px">
-        📅 Публикация запланирована: ${new Date(event.scheduled_publish_time).toLocaleString('ru')}
-      </div>
-    </div>` : ''}
-  </div>`);
-}
-
-async function publishEventNow(eventId) {
-  if (!confirm('Опубликовать событие сейчас?')) return;
-  
-  const result = await api('POST', `/api/admin/events/${eventId}/publish-now`);
-  if (result) {
-    toast('Событие опубликовано');
-    closeModal();
-    renderEvents();
-  }
-}
-
-async function schedulePublish(eventId) {
-  const scheduleTime = document.getElementById('publish-schedule-time').value;
-  
-  if (!scheduleTime) {
-    toast('Выберите время публикации', 'err');
-    return;
-  }
-  
-  const scheduleDate = new Date(scheduleTime);
-  const now = new Date();
-  
-  if (scheduleDate <= now) {
-    toast('Время публикации должно быть в будущем', 'err');
-    return;
-  }
-  
-  const result = await api('POST', `/api/admin/events/${eventId}/schedule-publish`, {
-    scheduled_publish_time: scheduleDate.toISOString()
-  });
-  
-  if (result) {
-    toast(`Публикация запланирована на ${scheduleDate.toLocaleString('ru')}`);
-    closeModal();
-    renderEvents();
-  }
-}
-
-async function unpublishEvent(eventId) {
-  if (!confirm('Снять событие с публикации? Оно станет невидимым для пользователей.')) return;
-  
-  const result = await api('POST', `/api/admin/events/${eventId}/unpublish`);
-  if (result) {
-    toast('Событие снято с публикации');
-    closeModal();
-    renderEvents();
-  }
+  if (r) { closeModal(); toast(id?'Обновлено':'Создано'); renderEvents(); }
 }
 
 async function toggleEvent(id) { await api('PATCH',`/api/admin/events/${id}/toggle`); toast('Статус изменён'); renderEvents(); }
 async function deleteEvent(id) { if(!confirm('Удалить?')) return; await api('DELETE',`/api/admin/events/${id}`); toast('Удалено'); renderEvents(); }
-
-// ── Push-уведомления для событий ──
-async function openPushForm(eventId) {
-  const event = await api('GET', `/api/admin/events/${eventId}`);
-  if (!event) return;
-  
-  const history = await api('GET', `/api/admin/events/${eventId}/push-history`);
-  
-  // Форматируем дату и время для input datetime-local
-  const now = new Date();
-  const defaultTime = new Date(now.getTime() + 60 * 60 * 1000); // +1 час
-  const defaultTimeStr = defaultTime.toISOString().slice(0, 16);
-  
-  const scheduledTime = history?.scheduled_push_time 
-    ? new Date(history.scheduled_push_time).toISOString().slice(0, 16)
-    : defaultTimeStr;
-
-  openModal(`<div class="modal" style="width:700px">
-    <button class="modal-close" onclick="closeModal()">×</button>
-    <h3>📱 Push-уведомления: ${event.title}</h3>
-    
-    ${history?.push_sent ? `
-    <div style="background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);border-radius:8px;padding:12px;margin-bottom:16px;color:#4CAF50">
-      ✅ Push-уведомление уже отправлено<br>
-      <small>Дата: ${fmtDate(history.last_push_sent)} | Получателей: ${history.last_push_count || 0}</small>
-    </div>` : ''}
-    
-    <div class="form-group">
-      <label>Текст уведомления</label>
-      <input id="push-template" value="${history?.push_template || `🍵 Напоминание о событии "${event.title}"`}" placeholder="Текст push-уведомления">
-    </div>
-    
-    <div class="form-group">
-      <label>Целевая аудитория</label>
-      <select id="push-target">
-        <option value="all" ${history?.push_target === 'all' ? 'selected' : ''}>Все пользователи</option>
-        <option value="registered" ${history?.push_target === 'registered' ? 'selected' : ''}>Только зарегистрированные на событие</option>
-        <option value="vip" ${history?.push_target === 'vip' ? 'selected' : ''}>VIP пользователи (бонусы ≥ 1000)</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label>Запланировать отправку</label>
-      <input id="push-schedule-time" type="datetime-local" value="${scheduledTime}">
-      <small style="color:var(--muted);font-size:12px;margin-top:4px;display:block">
-        Оставьте пустым для отправки сейчас
-      </small>
-    </div>
-    
-    <div class="form-actions">
-      <button class="btn btn-primary" onclick="sendPushNow('${eventId}')">📤 Отправить сейчас</button>
-      <button class="btn btn-ghost" onclick="schedulePush('${eventId}')">📅 Запланировать</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
-    </div>
-    
-    ${history?.scheduled_push_time && !history?.push_sent ? `
-    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:16px">
-      <h4 style="font-size:14px;margin-bottom:10px;color:var(--muted)">Текущий план:</h4>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;font-size:13px">
-        📅 Запланировано: ${new Date(history.scheduled_push_time).toLocaleString('ru')}<br>
-        📝 Текст: ${history.push_template}<br>
-        👥 Аудитория: ${history.push_target === 'all' ? 'Все' : history.push_target === 'registered' ? 'Зарегистрированные' : 'VIP'}
-      </div>
-    </div>` : ''}
-  </div>`);
-}
-
-async function sendPushNow(eventId) {
-  const template = document.getElementById('push-template').value.trim();
-  const target = document.getElementById('push-target').value;
-  
-  if (!template) {
-    toast('Введите текст уведомления', 'err');
-    return;
-  }
-  
-  if (!confirm('Отправить push-уведомление сейчас?')) return;
-  
-  const result = await api('POST', `/api/admin/events/${eventId}/send-push-now`, {
-    push_template: template,
-    push_target: target
-  });
-  
-  if (result) {
-    toast(`Push отправлен ${result.sent_count} пользователям`);
-    closeModal();
-    renderEvents();
-  }
-}
-
-async function schedulePush(eventId) {
-  const template = document.getElementById('push-template').value.trim();
-  const target = document.getElementById('push-target').value;
-  const scheduleTime = document.getElementById('push-schedule-time').value;
-  
-  if (!template) {
-    toast('Введите текст уведомления', 'err');
-    return;
-  }
-  
-  if (!scheduleTime) {
-    toast('Выберите время отправки', 'err');
-    return;
-  }
-  
-  const scheduleDate = new Date(scheduleTime);
-  const now = new Date();
-  
-  if (scheduleDate <= now) {
-    toast('Время отправки должно быть в будущем', 'err');
-    return;
-  }
-  
-  const result = await api('POST', `/api/admin/events/${eventId}/schedule-push`, {
-    scheduled_push_time: scheduleDate.toISOString(),
-    push_template: template,
-    push_target: target
-  });
-  
-  if (result) {
-    toast(`Push запланирован на ${scheduleDate.toLocaleString('ru')}`);
-    closeModal();
-    renderEvents();
-  }
-}
-
-async function showSchedulerStats() {
-  const stats = await api('GET', '/api/admin/events/scheduler/stats');
-  if (!stats) return;
-  
-  openModal(`<div class="modal" style="width:600px">
-    <button class="modal-close" onclick="closeModal()">×</button>
-    <h3>📊 Статистика планировщика</h3>
-    
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0">
-      <div style="background:var(--surface2);border-radius:8px;padding:16px;text-align:center">
-        <div style="font-size:24px;font-weight:700;color:var(--gold)">${stats.scheduledPushCount}</div>
-        <div style="font-size:12px;color:var(--muted);text-transform:uppercase">Push запланировано</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:16px;text-align:center">
-        <div style="font-size:24px;font-weight:700;color:var(--green)">${stats.sentPushCount}</div>
-        <div style="font-size:12px;color:var(--muted);text-transform:uppercase">Push отправлено</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:16px;text-align:center">
-        <div style="font-size:24px;font-weight:700;color:var(--blue)">${stats.scheduledPublishCount}</div>
-        <div style="font-size:12px;color:var(--muted);text-transform:uppercase">Публикаций запланировано</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:16px;text-align:center">
-        <div style="font-size:24px;font-weight:700;color:var(--green)">${stats.publishedCount}</div>
-        <div style="font-size:12px;color:var(--muted);text-transform:uppercase">Событий опубликовано</div>
-      </div>
-    </div>
-    
-    <div style="background:var(--surface2);border-radius:8px;padding:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="color:var(--muted);font-size:13px">Статус планировщика:</span>
-        <span class="badge ${stats.isRunning ? 'badge-green' : 'badge-red'}">
-          ${stats.isRunning ? '🟢 Работает' : '🔴 Остановлен'}
-        </span>
-      </div>
-      <div style="color:var(--muted);font-size:12px">
-        Последняя проверка: ${new Date(stats.lastCheck).toLocaleString('ru')}
-      </div>
-    </div>
-    
-    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:16px">
-      <h4 style="font-size:14px;margin-bottom:12px;color:var(--text)">🎯 Возможности планировщика:</h4>
-      <ul style="color:var(--muted);font-size:13px;line-height:1.6;margin:0;padding-left:20px">
-        <li><strong>Push-уведомления:</strong> автоматическая отправка в назначенное время</li>
-        <li><strong>Отложенная публикация:</strong> события публикуются автоматически</li>
-        <li><strong>Умная отправка:</strong> push отправляется при публикации события</li>
-        <li><strong>Целевые аудитории:</strong> все пользователи, VIP, зарегистрированные</li>
-      </ul>
-    </div>
-    
-    <div class="form-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Закрыть</button>
-    </div>
-  </div>`);
-}
 
 // ════════════════════════════════════════════════════════════
 // PRODUCTS
@@ -831,16 +332,7 @@ async function showSchedulerStats() {
 let _prods = [];
 async function renderProducts() {
   document.getElementById('main').innerHTML = `
-    <div class="page-header">
-      <h1>🍵 Товары</h1>
-      <div style="display:flex;gap:8px;align-items:center">
-        <label class="btn btn-ghost" style="cursor:pointer" title="Загрузить товары из Excel/CSV">
-          📊 Загрузить Excel
-          <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="uploadExcel(this)">
-        </label>
-        <button class="btn btn-primary" onclick="openManualForm()">+ Ручной товар</button>
-      </div>
-    </div>
+    <div class="page-header"><h1>🍵 Товары</h1><button class="btn btn-primary" onclick="openManualForm()">+ Ручной товар</button></div>
     <div class="card">
       <div class="filters">
         <input id="p-q" placeholder="Поиск..." oninput="filterProds()">
@@ -853,20 +345,6 @@ async function renderProducts() {
   const sel = document.getElementById('p-cat');
   cats.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
   renderProdsTable(_prods);
-}
-
-async function uploadExcel(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const fd = new FormData();
-  fd.append('file', file);
-  toast('Загружаем файл...');
-  const r = await api('POST', '/api/iiko/upload/products', fd, true);
-  if (r) {
-    toast(`✅ Загружено: +${r.added} новых, ~${r.updated} обновлено, ×${r.skipped} пропущено`);
-    renderProducts();
-  }
-  input.value = '';
 }
 
 function filterProds() {
@@ -1164,113 +642,6 @@ async function saveManual() {
 }
 
 // ════════════════════════════════════════════════════════════
-// USERS SEARCH (Касса)
-// ════════════════════════════════════════════════════════════
-
-let _searchTimer = null;
-
-function searchUsers(q) {
-  clearTimeout(_searchTimer);
-  if (!q.trim()) { document.getElementById('users-list').innerHTML = ''; return; }
-  _searchTimer = setTimeout(() => loadUsers(q), 300);
-}
-
-async function loadAllUsers() {
-  document.getElementById('user-search-input').value = '';
-  await loadUsers('');
-}
-
-async function loadUsers(q) {
-  const list = document.getElementById('users-list');
-  if (!list) return;
-  list.innerHTML = '<p style="color:var(--muted);font-size:13px">Загрузка...</p>';
-  const url = q ? `/api/admin/users?q=${encodeURIComponent(q)}` : '/api/admin/users';
-  const users = await api('GET', url);
-  if (!users) return;
-  if (!users.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">Гостей не найдено</p>'; return; }
-  
-  const statusColors = { 'Золото': '#C9A84C', 'Серебро': '#C0C0C0', 'Бронза': '#CD7F32' };
-  list.innerHTML = `<table style="font-size:13px">
-    <thead><tr><th>Имя</th><th>Телефон</th><th>Баланс</th><th>Статус</th><th></th></tr></thead>
-    <tbody>${users.map(u => `<tr>
-      <td><strong>${u.name}</strong></td>
-      <td style="font-family:monospace">${u.phone}</td>
-      <td style="color:var(--gold);font-weight:700">${u.bonus_balance} ₽</td>
-      <td><span style="color:${statusColors[u.loyalty_status]||'#CD7F32'}">${u.loyalty_status}</span></td>
-      <td><button class="btn btn-ghost btn-sm" onclick="openUserCard('${u._id}')">Открыть</button></td>
-    </tr>`).join('')}</tbody></table>`;
-}
-
-async function openUserCard(id) {
-  const u = await api('GET', `/api/admin/users/${id}`);
-  if (!u) return;
-  const statusColors = { 'Золото': '#C9A84C', 'Серебро': '#C0C0C0', 'Бронза': '#CD7F32' };
-  openModal(`<div class="modal" style="width:560px">
-    <button class="modal-close" onclick="closeModal()">×</button>
-    <h3>👤 ${u.name || 'Гость'}</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0">
-      <div style="background:var(--surface2);border-radius:10px;padding:14px">
-        <div style="color:var(--muted);font-size:11px;margin-bottom:4px">ТЕЛЕФОН</div>
-        <div style="font-family:monospace;font-size:15px">${u.phone}</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:10px;padding:14px">
-        <div style="color:var(--muted);font-size:11px;margin-bottom:4px">БОНУСЫ</div>
-        <div style="color:var(--gold);font-size:18px;font-weight:700">${u.bonus_balance ?? 0} баллов</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:10px;padding:14px">
-        <div style="color:var(--muted);font-size:11px;margin-bottom:4px">СТАТУС</div>
-        <div style="color:${statusColors[u.loyalty_status]||'#CD7F32'};font-weight:700">${u.loyalty_status || 'Бронза'}</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:10px;padding:14px">
-        <div style="color:var(--muted);font-size:11px;margin-bottom:4px">ЗАКАЗОВ</div>
-        <div style="font-size:15px;font-weight:700">${u.orders_count} на ${Number(u.orders_total).toLocaleString('ru')} ₽</div>
-      </div>
-    </div>
-    ${u.transactions?.length ? `
-    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase">История бонусов</div>
-    <div style="max-height:200px;overflow-y:auto">
-      <table style="font-size:12px;width:100%">
-        <thead><tr><th>Дата</th><th>Операция</th><th>Начислено</th><th>Списано</th><th>Баланс</th></tr></thead>
-        <tbody>${u.transactions.map(t => `<tr>
-          <td style="color:var(--muted)">${new Date(t.created_at).toLocaleDateString('ru')}</td>
-          <td>${t.description || t.operation_type}</td>
-          <td style="color:#4CAF50">${t.accrued > 0 ? '+'+t.accrued : '—'}</td>
-          <td style="color:#E53935">${t.spent > 0 ? '-'+t.spent : '—'}</td>
-          <td style="font-weight:700">${t.balance}</td>
-        </tr>`).join('')}</tbody>
-      </table>
-    </div>` : '<p style="color:var(--muted);font-size:13px">Транзакций нет</p>'}
-    <div style="margin-top:16px;display:flex;gap:10px">
-      <button class="btn btn-primary" onclick="closeModal();openBonusAdjust('${u.phone}','${u.name||''}')">✏️ Изменить бонусы</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Закрыть</button>
-    </div>
-  </div>`);
-}
-
-function openBonusAdjust(phone, name) {
-  openModal(`<div class="modal" style="width:420px">
-    <button class="modal-close" onclick="closeModal()">×</button>
-    <h3>Изменить бонусы — ${name || phone}</h3>
-    <div class="form-group"><label>Сумма (+ начислить, - списать)</label>
-      <input id="ba-delta" type="number" placeholder="Например: 100 или -50"></div>
-    <div class="form-group"><label>Комментарий</label>
-      <input id="ba-comment" placeholder="Причина изменения"></div>
-    <div class="form-actions">
-      <button class="btn btn-primary" onclick="saveBonusAdjust('${phone}')">Сохранить</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
-    </div>
-  </div>`);
-}
-
-async function saveBonusAdjust(phone) {
-  const delta = Number(document.getElementById('ba-delta').value);
-  const comment = document.getElementById('ba-comment').value;
-  if (!delta) { toast('Введите сумму', 'err'); return; }
-  const r = await api('POST', '/api/admin/bonus/adjust', { phone, delta, comment });
-  if (r) { closeModal(); toast(`Баланс обновлён: ${r.new_balance} баллов`); }
-}
-
-// ════════════════════════════════════════════════════════════
 // GALLERY
 // ════════════════════════════════════════════════════════════
 let _gallery = [];
@@ -1355,11 +726,6 @@ async function renderSync() {
 async function loadSyncStatus() {
   const s=await api('GET','/api/sync/status'); if(!s) return;
   document.getElementById('sync-c').innerHTML=`
-    <div class="card"><h2>🔗 iiko Cloud API</h2>
-      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Синхронизация меню напрямую через iiko Cloud API</p>
-      <button class="btn btn-primary" onclick="syncIikoApi()" id="iiko-api-btn">▶ Синхронизировать меню из iiko</button>
-      <div id="iiko-api-result" style="margin-top:12px"></div>
-    </div>
     <div class="card"><h2>Яндекс.Диск</h2>
       <table><thead><tr><th>Тип</th><th>Последняя синхронизация</th><th>Ошибка</th><th></th></tr></thead>
       <tbody>
@@ -1395,20 +761,6 @@ async function loadSyncStatus() {
     </div>`;
 }
 
-async function syncIikoApi() {
-  const btn = document.getElementById('iiko-api-btn');
-  const res = document.getElementById('iiko-api-result');
-  btn.disabled = true; btn.textContent = '⏳ Синхронизация...';
-  res.innerHTML = '';
-  const r = await api('POST', '/api/iiko/sync/api');
-  btn.disabled = false; btn.textContent = '▶ Синхронизировать меню из iiko';
-  if (r) {
-    res.innerHTML = `<div style="background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);border-radius:8px;padding:12px;color:#4CAF50">
-      ✅ Готово: +${r.added||0} новых, ~${r.updated||0} обновлено, ×${r.skipped||0} пропущено. Всего: ${r.total||0}
-    </div>`;
-  }
-}
-
 async function runSync(type) {
   const r=await api('POST','/api/sync/run', type?{type}:{}); if(r){toast('Синхронизация запущена'); await loadSyncStatus();}
 }
@@ -1417,118 +769,6 @@ async function uploadSync(type) {
   const fd=new FormData(); fd.append('file',f);
   const r=await api('POST',`/api/iiko/upload/${type}`,fd,true);
   if(r){toast(`Загружено: ${r.total||0} строк`); await loadSyncStatus();}
-}
-
-// ════════════════════════════════════════════════════════════
-// NEWS
-// ════════════════════════════════════════════════════════════
-
-async function renderNews() {
-  document.getElementById('main').innerHTML = `
-    <div class="page-header">
-      <h1>📰 Новости</h1>
-      <button class="btn btn-primary" onclick="openNewsForm()">+ Добавить</button>
-    </div>
-    <div class="card" id="news-wrap"><p class="empty">Загрузка...</p></div>`;
-  const news = await api('GET', '/api/admin/news'); if (!news) return;
-  renderNewsTable(news);
-}
-
-function renderNewsTable(news) {
-  const w = document.getElementById('news-wrap');
-  if (!news.length) { w.innerHTML = '<p class="empty">Новостей пока нет</p>'; return; }
-  w.innerHTML = `<table>
-    <thead><tr><th>Заголовок</th><th>Статус</th><th>Push</th><th>Дата</th><th></th></tr></thead>
-    <tbody>${news.map(n => `<tr>
-      <td><strong>${n.title}</strong></td>
-      <td>
-        <span class="badge ${n.is_published ? 'badge-green' : 'badge-orange'}">${n.is_published ? 'Опубликовано' : 'Черновик'}</span>
-        ${n.scheduled_publish_time && !n.is_published ? `<br><span style="font-size:11px;color:var(--muted)">⏰ ${fmtDate(n.scheduled_publish_time)}</span>` : ''}
-      </td>
-      <td>
-        ${n.push_sent ? '<span class="badge badge-blue">Отправлен</span>' : n.scheduled_push_time ? `<span class="badge badge-orange">⏰ ${fmtDate(n.scheduled_push_time)}</span>` : '—'}
-      </td>
-      <td style="font-size:12px;color:var(--muted)">${fmtDate(n.created_at)}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="openNewsForm('${n._id}')">✏️</button>
-        ${!n.is_published ? `<button class="btn btn-success btn-sm" onclick="publishNewsNow('${n._id}')">▶ Опубликовать</button>` : ''}
-        <button class="btn btn-primary btn-sm" onclick="sendNewsPushNow('${n._id}')">📱 Push</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteNews('${n._id}')">🗑️</button>
-      </td>
-    </tr>`).join('')}</tbody></table>`;
-}
-
-function openNewsForm(id = '') {
-  const news = window._newsCache || [];
-  const n = news.find(x => x._id === id) || {};
-  openModal(`<div class="modal" style="width:660px">
-    <button class="modal-close" onclick="closeModal()">×</button>
-    <h3>${id ? 'Редактировать' : 'Новая'} новость</h3>
-    <div class="form-group"><label>Заголовок *</label><input id="nf-title" value="${n.title || ''}"></div>
-    <div class="form-group"><label>Текст</label><textarea id="nf-desc" rows="5">${n.description || ''}</textarea></div>
-    <div class="form-group"><label>Изображение (URL)</label><input id="nf-img" value="${n.image_url || ''}"></div>
-    <div class="form-row">
-      <div class="form-group"><label>Статус</label>
-        <select id="nf-published">
-          <option value="true" ${n.is_published !== false ? 'selected' : ''}>Опубликовано</option>
-          <option value="false" ${n.is_published === false ? 'selected' : ''}>Черновик</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Отложенная публикация</label>
-        <input id="nf-pub-time" type="datetime-local" value="${n.scheduled_publish_time ? n.scheduled_publish_time.slice(0,16) : ''}">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Push-уведомление</label>
-        <input id="nf-push" placeholder="Текст push (оставьте пустым — без push)" value="${n.push_template || ''}">
-      </div>
-      <div class="form-group"><label>Время push</label>
-        <input id="nf-push-time" type="datetime-local" value="${n.scheduled_push_time ? n.scheduled_push_time.slice(0,16) : ''}">
-      </div>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-primary" onclick="saveNews('${id}')">💾 Сохранить</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
-    </div>
-  </div>`);
-}
-
-async function saveNews(id) {
-  const title = document.getElementById('nf-title').value.trim();
-  if (!title) { toast('Введите заголовок', 'err'); return; }
-  const pubTime = document.getElementById('nf-pub-time').value;
-  const pushTime = document.getElementById('nf-push-time').value;
-  const isPublished = document.getElementById('nf-published').value === 'true';
-
-  const body = {
-    title,
-    description: document.getElementById('nf-desc').value,
-    image_url: document.getElementById('nf-img').value,
-    is_published: pubTime ? false : isPublished,
-    auto_publish: !!pubTime,
-    scheduled_publish_time: pubTime ? new Date(pubTime).toISOString() : null,
-    push_template: document.getElementById('nf-push').value.trim(),
-    scheduled_push_time: pushTime ? new Date(pushTime).toISOString() : null,
-  };
-
-  const r = id ? await api('PUT', `/api/admin/news/${id}`, body) : await api('POST', '/api/admin/news', body);
-  if (r) { closeModal(); toast(id ? 'Обновлено' : 'Создано'); renderNews(); }
-}
-
-async function publishNewsNow(id) {
-  const r = await api('POST', `/api/admin/news/${id}/publish-now`);
-  if (r) { toast('Опубликовано'); renderNews(); }
-}
-
-async function sendNewsPushNow(id) {
-  const r = await api('POST', `/api/admin/news/${id}/send-push-now`);
-  if (r) { toast('Push отправлен'); renderNews(); }
-}
-
-async function deleteNews(id) {
-  if (!confirm('Удалить новость?')) return;
-  const r = await api('DELETE', `/api/admin/news/${id}`);
-  if (r) { toast('Удалено'); renderNews(); }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1567,7 +807,7 @@ function fmtDate(d) { return d ? new Date(d).toLocaleString('ru-RU',{day:'2-digi
 
 async function changeOrderStatus(id, status) {
   const r = await api('PUT',`/api/admin/orders/${id}/status`,{status});
-  if(r) { toast('Статус обновлён'); renderOrders(); }
+  if(r) toast('Статус обновлён');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1580,18 +820,6 @@ let _currentUserId = null;
 function renderCashier() {
   document.getElementById('main').innerHTML = `
     <div class="page-header"><h1>Касса</h1></div>
-
-    <!-- Поиск пользователей -->
-    <div class="card" style="padding:14px;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">🔍 Поиск гостя</div>
-      <div style="display:flex;gap:10px">
-        <input id="user-search-input" type="text" placeholder="Телефон или имя гостя..."
-          style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;color:var(--text);font-size:14px;outline:none"
-          oninput="searchUsers(this.value)">
-        <button class="btn btn-ghost btn-sm" onclick="loadAllUsers()">Все гости</button>
-      </div>
-      <div id="users-list" style="margin-top:12px"></div>
-    </div>
 
     <!-- Поле для USB-сканера (перехватывает ввод автоматически) -->
     <div class="card" style="padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
@@ -1667,8 +895,17 @@ function initUsbScanner() {
     }
   });
 
-  // Автофокус убран — не мешает поиску пользователей
-  // Кассир кликает на USB поле когда нужно сканировать
+  // Автофокус на поле — сканер сразу пишет в него
+  input.focus();
+
+  // Возвращаем фокус если кликнули куда-то ещё
+  document.addEventListener('click', (e) => {
+    const purchaseInput = document.getElementById('purchase-amount');
+    const accrueBtn = document.getElementById('accrue-btn');
+    if (e.target !== purchaseInput && e.target !== accrueBtn && e.target !== input) {
+      input?.focus();
+    }
+  });
 }
 
 async function processUsbScan() {

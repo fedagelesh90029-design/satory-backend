@@ -16,7 +16,12 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.satory.tea",
-      "icon": "./assets/Satory.png"
+      "icon": "./assets/Satory.png",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "package": "com.satory.tea",
@@ -42,6 +47,17 @@
           "icon": "./assets/Satory.png",
           "color": "#D4A017",
           "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          },
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ]
     ],

@@ -22,31 +22,21 @@ async function withMeta(product) {
 }
 
 router.get('/', async (req, res) => {
-  const { category, search, excludeCategory, teaOnly } = req.query;
+  const { category, search, excludeCategory } = req.query;
   const query = { active: { $ne: false } };
   if (search) query.name = new RegExp(search, 'i');
 
   let products = await db.products.find(query);
 
-  // Скрываем товары с нулевым или отрицательным остатком (кроме ручных товаров и услуг)
-  products = products.filter(p => {
-    const cat = p.category_override ?? p.category;
-    if (p.is_manual || cat === 'Услуги') return true; // услуги и ручные всегда показываем
-    return p.stock === null || p.stock === undefined || p.stock > 0;
-  });
-
-  // Чайные категории
-  const nonTea = ['Посуда', 'Аксессуары', 'Еда', 'Услуги'];
-
-  if (teaOnly === '1') {
-    products = products.filter(p => !nonTea.includes(p.category_override ?? p.category));
-  } else if (category && category !== 'Все') {
+  // Фильтр по категории с учётом override
+  if (category && category !== 'Все') {
     products = products.filter(p => (p.category_override ?? p.category) === category);
   }
   if (excludeCategory) {
     products = products.filter(p => (p.category_override ?? p.category) !== excludeCategory);
   }
 
+  // Применяем override цены и категории
   res.json(products.map(p => ({
     ...p,
     price:    p.price_override    ?? p.price,

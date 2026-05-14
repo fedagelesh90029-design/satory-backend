@@ -1,31 +1,11 @@
 const router = require('express').Router();
 const db = require('../db');
-const jwt = require('jsonwebtoken');
+const adminAuth = require('../middleware/adminAuth');
 const { calcLoyaltyStatus, normalizePhone } = require('../services/iikoFileParser');
 const { sendPushToUser } = require('../services/pushService');
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'satory_admin_2026';
-const JWT_SECRET = process.env.JWT_SECRET || 'satory_secret_2026';
-
-function adminOnly(req, res, next) {
-  // Способ 1: x-admin-secret (обратная совместимость)
-  if (req.headers['x-admin-secret'] === ADMIN_SECRET) return next();
-
-  // Способ 2: JWT Bearer токен
-  const header = req.headers.authorization;
-  if (header) {
-    const token = header.split(' ')[1];
-    try {
-      const payload = jwt.verify(token, JWT_SECRET);
-      if (payload.is_admin) { req.admin = payload; return next(); }
-    } catch {}
-  }
-
-  return res.status(403).json({ error: 'Доступ запрещён' });
-}
-
 // POST /api/admin/bonus/adjust
-router.post('/bonus/adjust', adminOnly, async (req, res) => {
+router.post('/bonus/adjust', adminAuth, async (req, res) => {
   const { phone, delta, comment } = req.body;
   if (!phone || delta === undefined) {
     return res.status(400).json({ error: 'phone и delta обязательны' });
@@ -70,7 +50,7 @@ router.post('/bonus/adjust', adminOnly, async (req, res) => {
 });
 
 // GET /api/admin/users — список всех пользователей с поиском
-router.get('/users', adminOnly, async (req, res) => {
+router.get('/users', adminAuth, async (req, res) => {
   const { q } = req.query;
   let users = await db.users.find({});
   
@@ -96,7 +76,7 @@ router.get('/users', adminOnly, async (req, res) => {
 });
 
 // GET /api/admin/users/:id — карточка пользователя
-router.get('/users/:id', adminOnly, async (req, res) => {
+router.get('/users/:id', adminAuth, async (req, res) => {
   const user = await db.users.findOne({ _id: req.params.id });
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
@@ -114,7 +94,7 @@ router.get('/users/:id', adminOnly, async (req, res) => {
 });
 
 // GET /api/admin/sync/status — расширенный статус для админа
-router.get('/sync/status', adminOnly, async (req, res) => {
+router.get('/sync/status', adminAuth, async (req, res) => {
   const logs = await db.sync_log.find({});
   logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   res.json(logs.slice(0, 20));

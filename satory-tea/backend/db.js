@@ -16,8 +16,8 @@ const db = {
   otp_codes: Datastore.create({ filename: path.join(dir, 'otp_codes.db'), autoload: true }),
   gallery: Datastore.create({ filename: path.join(dir, 'gallery.db'), autoload: true }),
   categories: Datastore.create({ filename: path.join(dir, 'categories.db'), autoload: true }),
-  app_settings: Datastore.create({ filename: path.join(dir, 'app_settings.db'), autoload: true }),
   news: Datastore.create({ filename: path.join(dir, 'news.db'), autoload: true }),
+  app_settings: Datastore.create({ filename: path.join(dir, 'app_settings.db'), autoload: true }),
 };
 
 // Seed products
