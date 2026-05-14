@@ -60,4 +60,4 @@ require('./services/telegramBot').startPolling();
 app.get('/api/health', (_, res) => res.json({ status: 'ok', app: 'Satori Tea' }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Satori backend running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Satori backend running on port ${PORT}`));
