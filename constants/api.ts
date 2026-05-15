@@ -1,5 +1,5 @@
-export const API_BASE = 'http://localhost:3000/api'; // Local Dev
-// export const API_BASE = 'http://72.56.245.188:3000/api'; // Timeweb VPS
+// export const API_BASE = 'http://localhost:3000/api'; // Local Dev
+export const API_BASE = 'http://72.56.245.188:3000/api'; // Timeweb VPS
 // export const API_BASE = 'https://sat-fedoro.amvera.io/api'; // Amvera Cloud (Inactive)
 // export const API_BASE = 'https://satory-backend-production.up.railway.app/api'; // Railway (Inactive)
 export const MEDIA_BASE = API_BASE.replace('/api', '');
