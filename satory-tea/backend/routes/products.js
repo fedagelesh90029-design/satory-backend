@@ -21,8 +21,66 @@ async function withMeta(product) {
   };
 }
 
+const CATEGORY_MAPPING = {
+  'Еда': ['ДЕСЕРТЫ'],
+  'Посуда': [
+    'ПИАЛЫ', 'ГАЙВАНИ', 'ЧАЙНИКИ', 'ЧАХАИ', 'ЧАБАНИ', 'ЧАХЭ', 
+    'СИТО', 'ВОРОНКИ-СИФОНЫ-СТАНЦИИ', 'ТЕРМОСЫ- БУТЫЛКИ-КРУЖКИ', 'НАБОРЫ'
+  ],
+  'Аксессуары': [
+    'БЛАГОВОНИЯ', 'ФИГУРКИ', 'ИНСТРУМЕНТЫ', 'СУМКИ', 'ПОЛОТЕНЦА', 
+    'ПОДСТАВКИ', 'ХРАНЕНИЕ-УПАКОВКА', 'ПРОЧЕЕ'
+  ],
+  'Услуги': ['УСЛУГИ'],
+  'Чай': ['МАТЭ'],
+};
+
+function getParentCategory(subCategory) {
+  for (const [parent, subs] of Object.entries(CATEGORY_MAPPING)) {
+    if (subs.includes(subCategory)) return parent;
+  }
+  return 'Чай';
+}
+
+function isTeaProduct(product) {
+  const name = product.name.toLowerCase();
+  const cat = (product.category_override ?? product.category).toUpperCase();
+  const parent = getParentCategory(cat);
+
+  if (parent !== 'Чай') return false;
+
+  // Исключаем аксессуары, которые могли попасть в категорию чая
+  const nonTeaKeywords = [
+    'ёршик', 'ершик', 'бомбилья', 'трубочка', 'калебас', 'набор', 'щетка', 
+    'венчик', 'лодка', 'книга', 'ложка', 'часаку', 'тясаку', 'нож'
+  ];
+  
+  // Если в названии есть любое из этих слов — это не чай
+  if (nonTeaKeywords.some(k => name.includes(k))) return false;
+  
+  // Специальная проверка для матчи — исключаем всё, что не является самим порошком
+  if (cat.includes('МАТЧА') || name.includes('матча')) {
+    const isAccessory = ['венчик', 'ложка', 'часаку', 'тясаку', 'набор', 'пиала', 'чаша'].some(k => name.includes(k));
+    if (isAccessory) return false;
+  }
+
+  return true;
+}
+
+function getDisplayUnit(product) {
+  const name = product.name.toLowerCase();
+
+  // Единица измерения только для чая (за исключением VIP-зала, там тоже можно скрыть или оставить)
+  // Пользователь попросил: "нигде единицы не будем писать только в чае граммы"
+  if (isTeaProduct(product) && !name.includes('vip') && !name.includes('вип')) {
+    return 'г';
+  }
+
+  return '';
+}
+
 router.get('/', async (req, res) => {
-  const { category, search, excludeCategory } = req.query;
+  const { category, search, excludeCategory, teaOnly } = req.query;
   const query = { active: { $ne: false } };
   if (search) query.name = new RegExp(search, 'i');
 
@@ -30,17 +88,29 @@ router.get('/', async (req, res) => {
 
   // Фильтр по категории с учётом override
   if (category && category !== 'Все') {
-    products = products.filter(p => (p.category_override ?? p.category) === category);
+    products = products.filter(p => {
+      const cat = p.category_override ?? p.category;
+      return cat === category || getParentCategory(cat) === category;
+    });
   }
-  if (excludeCategory) {
-    products = products.filter(p => (p.category_override ?? p.category) !== excludeCategory);
+  
+  if (teaOnly === '1') {
+    products = products.filter(p => isTeaProduct(p));
   }
 
-  // Применяем override цены и категории
+  if (excludeCategory) {
+    products = products.filter(p => {
+      const cat = p.category_override ?? p.category;
+      return cat !== excludeCategory && getParentCategory(cat) !== excludeCategory;
+    });
+  }
+
+  // Применяем override цены, категории и вычисляем единицы измерения
   res.json(products.map(p => ({
     ...p,
     price:    p.price_override    ?? p.price,
     category: p.category_override ?? p.category,
+    unit:     getDisplayUnit(p)
   })));
 });
 

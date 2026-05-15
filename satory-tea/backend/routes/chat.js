@@ -1,12 +1,23 @@
 const router = require('express').Router();
+const Groq = require('groq-sdk');
 const OpenAI = require('openai');
 
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY || '';
 
-const client = CEREBRAS_API_KEY ? new OpenAI({
-  apiKey: CEREBRAS_API_KEY,
-  baseURL: 'https://api.cerebras.ai/v1',
-}) : null;
+// Инициализация клиентов
+let groqClient = null;
+if (GROQ_API_KEY) {
+  groqClient = new Groq({ apiKey: GROQ_API_KEY });
+}
+
+let cerebrasClient = null;
+if (CEREBRAS_API_KEY) {
+  cerebrasClient = new OpenAI({
+    apiKey: CEREBRAS_API_KEY,
+    baseURL: 'https://api.cerebras.ai/v1',
+  });
+}
 
 const SYSTEM_PROMPT = `Ты — чайный советник чайного дома «Satori». Твоё имя — Советник Satori.
 
@@ -57,30 +68,56 @@ router.post('/message', async (req, res) => {
   const { message, session_id } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Нет сообщения' });
 
-  if (!client) {
-    return res.json({ reply: getFallbackReply(message), timestamp: new Date().toISOString() });
-  }
-
   const sid = session_id || 'default';
   const history = getSession(sid);
   history.push({ role: 'user', content: message });
 
-  try {
-    const completion = await client.chat.completions.create({
-      model: 'llama3.1-8b',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...history.slice(-10),
-      ],
-      max_tokens: 500,
-      temperature: 0.7,
-    });
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...history.slice(-10),
+  ];
 
-    const reply = completion.choices[0]?.message?.content || 'Не удалось получить ответ';
+  try {
+    let reply = '';
+
+    // 1. Пытаемся Groq (приоритет)
+    if (groqClient) {
+      try {
+        const completion = await groqClient.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages,
+          max_tokens: 500,
+          temperature: 0.7,
+        });
+        reply = completion.choices[0]?.message?.content;
+      } catch (e) {
+        console.error('[Groq error]', e.message);
+      }
+    }
+
+    // 2. Если Groq не сработал или нет ключа — пробуем Cerebras
+    if (!reply && cerebrasClient) {
+      try {
+        const completion = await cerebrasClient.chat.completions.create({
+          model: 'llama3.1-8b',
+          messages,
+          max_tokens: 500,
+          temperature: 0.7,
+        });
+        reply = completion.choices[0]?.message?.content;
+      } catch (e) {
+        console.error('[Cerebras error]', e.message);
+      }
+    }
+
+    if (!reply) {
+      reply = getFallbackReply(message);
+    }
+
     history.push({ role: 'assistant', content: reply });
     res.json({ reply, timestamp: new Date().toISOString(), session_id: sid });
   } catch (e) {
-    console.error('[Cerebras error]', e.message);
+    console.error('[Chat ultimate error]', e.message);
     res.json({ reply: getFallbackReply(message), timestamp: new Date().toISOString() });
   }
 });

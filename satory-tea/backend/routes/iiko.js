@@ -229,10 +229,28 @@ router.post('/sync/bonuses', adminAuth, async (req, res) => {
   }
 });
 
-// POST /api/iiko/sync — обратная совместимость
+// POST /api/iiko/sync — универсальный эндпоинт
 router.post('/sync', async (req, res) => {
+  const apiConfigured = !!(process.env.IIKO_API_LOGIN && process.env.IIKO_ORGANIZATION_ID);
+  
+  if (apiConfigured) {
+    try {
+      const { syncProductsFromIiko } = require('../services/iikoApiSync');
+      const result = await syncProductsFromIiko();
+      return res.json(result);
+    } catch (e) {
+      console.error('[iiko-api] Auto-sync failed, falling back to file:', e.message);
+    }
+  }
+
   const files = fs.readdirSync(UPLOAD_DIR).filter(f => f.startsWith('products_latest'));
-  if (!files.length) return res.status(404).json({ error: 'Файл выгрузки не найден. Загрузите файл через POST /api/iiko/upload/products', hint: 'Файловый режим активен' });
+  if (!files.length) {
+    return res.status(404).json({ 
+      error: 'Файл выгрузки не найден.', 
+      hint: apiConfigured ? 'Ошибка API синхронизации' : 'Загрузите файл через админ-панель' 
+    });
+  }
+  
   try {
     const delta = await runProductSync(path.join(UPLOAD_DIR, files[0]));
     res.json(delta);

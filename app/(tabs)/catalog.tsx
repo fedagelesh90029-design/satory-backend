@@ -151,7 +151,14 @@ export default function CatalogScreen() {
             <ProductCard
               item={item}
               onPress={() => router.push({ pathname: '/product', params: { id: item._id || item.id } })}
-              onCart={() => add(item)}
+              onCart={() => {
+                const isTeaToGo = item.name?.toLowerCase().includes('с собой');
+                if (isTeaToGo) {
+                  router.push({ pathname: '/product', params: { id: item._id || item.id } });
+                } else {
+                  add(item);
+                }
+              }}
             />
           </View>
         )}

@@ -26,35 +26,129 @@ export default function ProductScreen() {
   const [activeImg, setActiveImg] = useState(0);
   const [display, setDisplay]     = useState<any>({});
 
+  const [teas, setTeas]           = useState<any[]>([]);
+  const [teaModal, setTeaModal]   = useState(false);
+  const [selectedTea, setSelectedTea] = useState<any>(null);
+  const [favLoading, setFavLoading] = useState(false);
+  const [teaSubCat, setTeaSubCat] = useState('Все');
+
+  const TEA_GROUPS = [
+    { id: 'Все', label: 'Все' },
+    { id: 'Белый', label: 'Белый' },
+    { id: 'Улун', label: 'Улун' },
+    { id: 'ГАБА', label: 'ГАБА' },
+    { id: 'Красный', label: 'Красный' },
+    { id: 'Чёрный', label: 'Чёрный' },
+    { id: 'Шу', label: 'Шу' },
+    { id: 'Шэн', label: 'Шэн' },
+    { id: 'Травы', label: 'Травы' },
+    { id: 'Другое', label: 'Другое' },
+  ];
+
+  const filteredTeas = teas.filter(t => {
+    if (teaSubCat === 'Все') return true;
+    const name = t.name.toLowerCase();
+    const cat = (t.category || '').toLowerCase();
+    
+    const isGaba = name.includes('габа');
+    const isShu = name.includes('шу') || (cat.includes('пуэр') && !name.includes('шэн') && !name.includes('шен'));
+    const isSheng = name.includes('шэн') || name.includes('шен');
+    const isWhite = cat.includes('белый') || name.includes('белый');
+    const isRed = cat.includes('красный') || name.includes('красный');
+    const isBlack = (cat.includes('чёрный') || cat.includes('черный') || cat.includes('хэй ча') || name.includes('лю бао')) && !isShu;
+    const isOolong = (cat.includes('улун') || cat.includes('тайвань') || cat.includes('уишань') || cat.includes('гуандун') || cat.includes('аньси') || name.includes('улун') || name.includes('да хун пао') || name.includes('те гуань инь')) && !isGaba;
+    const isHerb = cat.includes('травы') || cat.includes('добавки') || name.includes('травы') || name.includes('ромашка') || name.includes('мята');
+    // В "Другое" оставляем ТОЛЬКО зеленый чай и матчу
+    const isGreenOrMatcha = cat.includes('зеленый') || cat.includes('зелёный') || cat.includes('матча') || name.includes('люй ча') || name.includes('лун цзин') || name.includes('матча') || name.includes('жемчужина') || name.includes('би ло чунь') || name.includes('мао фэн');
+
+    if (teaSubCat === 'ГАБА') return isGaba;
+    if (teaSubCat === 'Шу') return isShu && !isGaba;
+    if (teaSubCat === 'Шэн') return isSheng && !isGaba;
+    if (teaSubCat === 'Белый') return isWhite && !isGaba;
+    if (teaSubCat === 'Красный') return isRed && !isGaba;
+    if (teaSubCat === 'Чёрный') return isBlack && !isGaba;
+    if (teaSubCat === 'Улун') return isOolong && !isGaba;
+    if (teaSubCat === 'Травы') return isHerb && !isGaba;
+    if (teaSubCat === 'Другое') return isGreenOrMatcha && !isShu && !isSheng && !isWhite && !isRed && !isBlack && !isOolong && !isHerb && !isGaba;
+    
+    return false;
+  });
+
   useEffect(() => {
     if (!id) return;
-    Promise.all([
-      apiFetch(`/products/${id}`),
-      apiFetch('/settings/display').catch(() => ({})),
-    ]).then(([p, s]) => { setProduct(p); setDisplay(s); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [id]);
+    const fetchProduct = async () => {
+      try {
+        const [p, s, t] = await Promise.all([
+          apiFetch(`/products/${id}`),
+          apiFetch('/settings/display').catch(() => ({})),
+          apiFetch('/products?teaOnly=1').catch(() => []),
+        ]);
+        setProduct(p);
+        setDisplay(s);
+        setTeas(t);
+
+        // Check if favorited if token exists
+        if (token) {
+          const favorites = await apiFetch('/products/favorites/list', {}, token);
+          const isFav = favorites.some((f: any) => (f._id || f.id) === id);
+          setFav(isFav);
+        }
+      } catch (err) {
+        console.error('Error fetching product:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProduct();
+  }, [id, token]);
+
+  useEffect(() => {
+    if (product && product.name.toLowerCase().includes('с собой') && !selectedTea) {
+      setTeaModal(true);
+    }
+  }, [product]);
 
   const toggleFav = async () => {
-    if (!token) return;
+    if (!token) {
+      // Можно было бы редиректнуть на логин, но пока просто ничего не делаем
+      return;
+    }
+    setFavLoading(true);
     try {
-      const r = await apiFetch(`/products/${id}/favorite`, { method: 'POST' }, token);
-      setFav(r.favorited);
-    } catch {}
+      const res = await apiFetch(`/products/${id}/favorite`, { method: 'POST' }, token);
+      setFav(res.favorited);
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+    } finally {
+      setFavLoading(false);
+    }
   };
 
-  if (loading) return (
-    <View style={styles.center}>
-      <ActivityIndicator color={Colors.gold} size="large" />
-    </View>
-  );
+  const onAddToCart = () => {
+    if (product.name.toLowerCase().includes('с собой') && !selectedTea) {
+      setTeaModal(true);
+      return;
+    }
+    
+    const options = selectedTea ? {
+      tea_id: selectedTea._id,
+      tea_name: selectedTea.name,
+      tea_price: selectedTea.price,
+    } : undefined;
+
+    add(product, options);
+    goBack();
+  };
 
   if (!product) return (
     <View style={styles.center}>
       <Text style={{ color: Colors.gray }}>Товар не найден</Text>
     </View>
   );
+
+  const totalPrice = selectedTea 
+    ? product.price + (selectedTea.price * 6)
+    : product.price;
 
   const meta = product.meta || {};
 
@@ -182,15 +276,69 @@ export default function ProductScreen() {
       {display.show_price !== false && (
       <View style={styles.bottomBar}>
         <View>
-          <Text style={styles.priceLabel}>Цена</Text>
-          <Text style={styles.price}>{Number(product.price).toLocaleString('ru')} ₽</Text>
+          <Text style={styles.priceLabel}>{selectedTea ? 'Итоговая цена' : 'Цена'}</Text>
+          <Text style={styles.price}>{Number(totalPrice).toLocaleString('ru')} ₽</Text>
         </View>
-        <TouchableOpacity style={styles.cartBtn} onPress={() => { add(product); goBack(); }}>
+        <TouchableOpacity style={styles.cartBtn} onPress={onAddToCart}>
           <Ionicons name="cart-outline" size={20} color={Colors.bg} />
           <Text style={styles.cartBtnText}>В корзину</Text>
         </TouchableOpacity>
       </View>
       )}
+
+      {/* Выбор чая для "Чай с собой" */}
+      <Modal visible={teaModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.teaSheet}>
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetTitle}>Выберите чай</Text>
+                <Text style={styles.sheetSub}>Добавим 6 грамм к вашему заказу</Text>
+              </View>
+              <TouchableOpacity onPress={() => setTeaModal(false)}>
+                <Ionicons name="close" size={24} color={Colors.gray} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ height: 60, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupScroll}>
+                {TEA_GROUPS.map(g => (
+                  <TouchableOpacity key={g.id} 
+                    style={[styles.groupChip, teaSubCat === g.id && styles.groupChipActive]}
+                    onPress={() => setTeaSubCat(g.id)}
+                  >
+                    <Text style={[styles.groupText, teaSubCat === g.id && styles.groupTextActive]}>{g.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <FlatList
+              data={filteredTeas}
+              keyExtractor={item => item._id}
+              contentContainerStyle={{ padding: 20 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={[styles.teaItem, selectedTea?._id === item._id && styles.teaItemActive]}
+                  onPress={() => { setSelectedTea(item); setTeaModal(false); }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.teaItemName}>{item.name}</Text>
+                    <Text style={styles.teaItemPrice}>{item.price} ₽ / г</Text>
+                  </View>
+                  <View style={styles.teaItemRight}>
+                    <Text style={styles.teaItemTotal}>+ {item.price * 6} ₽</Text>
+                    <Ionicons 
+                      name={selectedTea?._id === item._id ? "radio-button-on" : "radio-button-off"} 
+                      size={20} color={selectedTea?._id === item._id ? Colors.gold : Colors.gray} 
+                    />
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* Lightbox */}
       <Modal visible={lightbox !== null} transparent animationType="fade"
@@ -284,4 +432,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },
   lbImage: { width, height: width * 1.2 },
+  // Modal styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  teaSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  sheetTitle: { color: Colors.white, fontSize: 18, fontWeight: '700' },
+  sheetSub: { color: Colors.gray, fontSize: 13 },
+  teaItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  teaItemActive: { backgroundColor: 'rgba(212,175,55,0.05)' },
+  teaItemName: { color: Colors.white, fontSize: 15, fontWeight: '600' },
+  teaItemPrice: { color: Colors.gray, fontSize: 12 },
+  teaItemRight: { alignItems: 'flex-end', gap: 4 },
+  teaItemTotal: { color: Colors.gold, fontSize: 14, fontWeight: '700' },
+  groupScroll: { paddingHorizontal: 20, alignItems: 'center', gap: 10 },
+  groupChip: {
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: Colors.border, borderWidth: 1, borderColor: 'transparent',
+  },
+  groupChipActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
+  groupText: { color: Colors.gray, fontSize: 13, fontWeight: '600' },
+  groupTextActive: { color: Colors.bg },
 });

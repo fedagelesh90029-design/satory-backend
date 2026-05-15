@@ -127,7 +127,12 @@ export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFa
         )}
         <View style={styles.priceRow}>
           <Text style={styles.price}>
-            {Number(item.price).toLocaleString('ru')} ₽{item.unit === 'гр' || item.unit === 'г' ? '/г' : item.unit === 'кг' ? '/кг' : ''}
+            {Number(item.price).toLocaleString('ru')} ₽
+            {item.unit === 'г' || item.unit === 'гр' ? '/г' : 
+             item.unit === 'шт' ? '/шт' : 
+             item.unit === 'набор' ? '/набор' : 
+             item.unit === 'упак' ? '/упак' : 
+             item.unit === 'кг' ? '/кг' : ''}
           </Text>
           <TouchableOpacity style={styles.cartBtn} onPress={onCart}>
             <Ionicons name="cart-outline" size={16} color={Colors.bg} />

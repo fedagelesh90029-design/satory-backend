@@ -170,8 +170,7 @@ async function syncFromExternalMenu(token, menuId) {
     for (const item of (cat.items || cat.products || [])) {
       if (!item.name) { skipped++; continue; }
 
-      // API v2: цена в itemSizes[0].prices.price (основной формат)
-      // или в sizePrices[0].price.currentPrice (старый формат)
+      // API v2: цена
       const price = item.itemSizes?.[0]?.prices?.price
         ?? item.itemSizes?.[0]?.prices?.[0]?.price
         ?? item.sizePrices?.[0]?.price?.currentPrice
@@ -179,27 +178,48 @@ async function syncFromExternalMenu(token, menuId) {
         ?? item.price
         ?? 0;
 
-      // API v2: изображения в itemSizes[0].buttonImageUrl
+      // API v2: изображения
       const imageUrl = item.itemSizes?.[0]?.buttonImageUrl
         || item.imageLinks?.[0]
         || item.images?.[0]?.imageUrl
         || null;
 
       const iikoId = item.itemId || item.id;
+      
+      // Определение единицы измерения на основе категории и названия
+      let unit = 'г';
+      const lowerName = item.name.toLowerCase();
+      const lowerCat = categoryName.toLowerCase();
+      
+      if (lowerCat.includes('посуда') || lowerCat.includes('аксессуар') || lowerCat.includes('чаш') || lowerCat.includes('пиал') || lowerCat.includes('гайван') || lowerCat.includes('чабан')) {
+        unit = lowerName.includes('набор') ? 'набор' : 'шт';
+      } else if (lowerCat.includes('еда') || lowerCat.includes('десерт')) {
+        unit = 'шт';
+      } else if (lowerName.includes('упак') || lowerName.includes('пачк') || lowerName.includes('блин') || lowerName.includes('плитк')) {
+        unit = 'упак';
+      }
 
       incomingIds.push(iikoId);
 
       const existing = await db.products.findOne({ iiko_id: iikoId });
       if (existing) {
-        // Не перезаписываем image_url если оно уже есть вручную — только обновляем из iiko если там появилось новое
-        const updateFields = { name: item.name, category: categoryName, price, description: item.description || '', active: true, updated_at: now };
-        if (imageUrl) updateFields.image_url = imageUrl; // обновляем фото только если iiko прислал
+        const updateFields = { 
+          name: item.name, 
+          category: categoryName, 
+          price, 
+          description: item.description || '', 
+          unit,
+          active: true, 
+          updated_at: now 
+        };
+        if (imageUrl) updateFields.image_url = imageUrl;
         await db.products.update({ iiko_id: iikoId }, { $set: updateFields });
         updated++;
       } else {
         await db.products.insert({
           iiko_id: iikoId, name: item.name, category: categoryName, price,
           description: item.description || '', image_url: imageUrl, active: true,
+          unit,
           is_manual: false, price_override: null, category_override: null,
           rating: 0, reviews_count: 0, badge: null, created_at: now, updated_at: now,
         });

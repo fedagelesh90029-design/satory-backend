@@ -6,14 +6,19 @@ interface CartItem {
   price: number;
   category: string;
   qty: number;
+  options?: {
+    tea_id?: string;
+    tea_name?: string;
+    tea_price?: number;
+  };
 }
 
 interface CartCtx {
   items: CartItem[];
-  add: (product: any) => void;
-  remove: (id: string) => void;
-  increment: (id: string) => void;
-  decrement: (id: string) => void;
+  add: (product: any, options?: CartItem['options']) => void;
+  remove: (id: string, optionsJson?: string) => void;
+  increment: (id: string, optionsJson?: string) => void;
+  decrement: (id: string, optionsJson?: string) => void;
   clear: () => void;
   total: number;
   count: number;
@@ -24,22 +29,39 @@ const CartContext = createContext<CartCtx>({} as CartCtx);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  const add = (product: any) => {
+  const add = (product: any, options?: CartItem['options']) => {
     setItems(prev => {
       const id = product._id || product.id;
-      const existing = prev.find(i => i._id === id);
-      if (existing) return prev.map(i => i._id === id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { _id: id, name: product.name, price: product.price, category: product.category, qty: 1 }];
+      const optKey = options ? JSON.stringify(options) : undefined;
+      const existing = prev.find(i => i._id === id && JSON.stringify(i.options) === optKey);
+      
+      if (existing) {
+        return prev.map(i => (i._id === id && JSON.stringify(i.options) === optKey) ? { ...i, qty: i.qty + 1 } : i);
+      }
+      
+      const price = options?.tea_price 
+        ? product.price + (options.tea_price * 6)
+        : product.price;
+
+      return [...prev, { 
+        _id: id, 
+        name: product.name, 
+        price, 
+        category: product.category, 
+        qty: 1,
+        options 
+      }];
     });
   };
 
-  const remove = (id: string) => setItems(prev => prev.filter(i => i._id !== id));
+  const remove = (id: string, optionsJson?: string) => 
+    setItems(prev => prev.filter(i => !(i._id === id && JSON.stringify(i.options) === optionsJson)));
 
-  const increment = (id: string) =>
-    setItems(prev => prev.map(i => i._id === id ? { ...i, qty: i.qty + 1 } : i));
+  const increment = (id: string, optionsJson?: string) =>
+    setItems(prev => prev.map(i => (i._id === id && JSON.stringify(i.options) === optionsJson) ? { ...i, qty: i.qty + 1 } : i));
 
-  const decrement = (id: string) =>
-    setItems(prev => prev.map(i => i._id === id ? { ...i, qty: Math.max(1, i.qty - 1) } : i));
+  const decrement = (id: string, optionsJson?: string) =>
+    setItems(prev => prev.map(i => (i._id === id && JSON.stringify(i.options) === optionsJson) ? { ...i, qty: Math.max(1, i.qty - 1) } : i));
 
   const clear = () => setItems([]);
 

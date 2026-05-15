@@ -27,7 +27,13 @@ export default function CartScreen() {
       await apiFetch('/orders', {
         method: 'POST',
         body: JSON.stringify({
-          items: items.map(i => ({ product_id: i._id, name: i.name, price: i.price, qty: i.qty })),
+          items: items.map(i => ({ 
+            product_id: i._id, 
+            name: i.name, 
+            price: i.price, 
+            qty: i.qty,
+            options: i.options 
+          })),
           total,
         }),
       }, token);
@@ -113,32 +119,38 @@ export default function CartScreen() {
         <>
           <FlatList
             data={items}
-            keyExtractor={i => i._id}
+            keyExtractor={i => i._id + JSON.stringify(i.options)}
             contentContainerStyle={styles.list}
-            renderItem={({ item }) => (
-              <View style={styles.item}>
-                <View style={styles.itemIcon}>
-                  <Ionicons name="leaf-outline" size={20} color={Colors.gold} />
+            renderItem={({ item }) => {
+              const optJson = JSON.stringify(item.options);
+              return (
+                <View style={styles.item}>
+                  <View style={styles.itemIcon}>
+                    <Ionicons name="leaf-outline" size={20} color={Colors.gold} />
+                  </View>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                    {item.options?.tea_name && (
+                      <Text style={styles.itemOption}>+ {item.options.tea_name} (6г)</Text>
+                    )}
+                    <Text style={styles.itemCat}>{item.category}</Text>
+                    <Text style={styles.itemPrice}>{(item.price * item.qty).toLocaleString('ru')} ₽</Text>
+                  </View>
+                  <View style={styles.itemRight}>
+                    <TouchableOpacity style={styles.qtyBtn} onPress={() => decrement(item._id, optJson)}>
+                      <Ionicons name="remove" size={14} color={Colors.white} />
+                    </TouchableOpacity>
+                    <Text style={styles.qty}>{item.qty}</Text>
+                    <TouchableOpacity style={styles.qtyBtn} onPress={() => increment(item._id, optJson)}>
+                      <Ionicons name="add" size={14} color={Colors.white} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.removeBtn} onPress={() => remove(item._id, optJson)}>
+                      <Ionicons name="trash-outline" size={16} color={Colors.red} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.itemCat}>{item.category}</Text>
-                  <Text style={styles.itemPrice}>{(item.price * item.qty).toLocaleString('ru')} ₽</Text>
-                </View>
-                <View style={styles.itemRight}>
-                  <TouchableOpacity style={styles.qtyBtn} onPress={() => decrement(item._id)}>
-                    <Ionicons name="remove" size={14} color={Colors.white} />
-                  </TouchableOpacity>
-                  <Text style={styles.qty}>{item.qty}</Text>
-                  <TouchableOpacity style={styles.qtyBtn} onPress={() => increment(item._id)}>
-                    <Ionicons name="add" size={14} color={Colors.white} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.removeBtn} onPress={() => remove(item._id)}>
-                    <Ionicons name="trash-outline" size={16} color={Colors.red} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+              );
+            }}
           />
 
           <View style={styles.footer}>
@@ -189,6 +201,7 @@ const styles = StyleSheet.create({
   itemIcon: { width: 40, height: 40, borderRadius: 10, backgroundColor: Colors.gold + '22', alignItems: 'center', justifyContent: 'center' },
   itemInfo: { flex: 1 },
   itemName: { color: Colors.white, fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  itemOption: { color: Colors.gold, fontSize: 12, fontWeight: '500', marginBottom: 2 },
   itemCat: { color: Colors.gray, fontSize: 11, marginBottom: 2 },
   itemPrice: { color: Colors.gold, fontSize: 14, fontWeight: '700' },
   itemRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
