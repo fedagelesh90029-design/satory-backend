@@ -15,20 +15,23 @@ module.exports = function adminAuth(req, res, next) {
     try {
       const payload = jwt.verify(token, JWT_SECRET);
       console.log('[AdminAuth] Decoded payload:', payload);
-      // Принимаем и role: admin, и is_admin: true для совместимости
-      if (payload.is_admin || payload.role === 'admin' || payload.isAdmin) {
+      
+      const isAdmin = payload.is_admin || payload.role === 'admin' || payload.isAdmin || payload.login === 'admin';
+      
+      if (isAdmin) {
         req.admin = payload;
         return next();
       } else {
-        console.warn('[AdminAuth] Payload missing admin flags:', payload);
+        console.warn('[AdminAuth] Payload missing admin flags. Payload:', JSON.stringify(payload));
       }
     } catch (err) {
-      console.error('[AdminAuth] Token error:', err.message);
+      console.error('[AdminAuth] Token verification failed:', err.message);
     }
   } else {
-    console.warn('[AdminAuth] No valid Authorization header found');
+    console.warn('[AdminAuth] No Bearer token in Authorization header');
   }
 
   // Если ничего не подошло
+  console.log('[AdminAuth] Authentication failed for', req.method, req.url);
   res.status(403).json({ error: 'Необходима авторизация администратора' });
 };
