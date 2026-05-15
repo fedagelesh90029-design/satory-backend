@@ -29,6 +29,7 @@ app.use('/api/admin/gallery', require('./routes/adminGallery'));
 app.use('/api/admin/categories', require('./routes/adminCategories'));
 app.use('/api/admin/orders', require('./routes/adminOrders'));
 app.use('/api/admin/upload', require('./routes/adminUpload'));
+app.use('/api/admin/news', require('./routes/adminNews'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/sync', require('./routes/sync'));
