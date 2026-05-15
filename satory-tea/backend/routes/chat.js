@@ -1,7 +1,12 @@
 const router = require('express').Router();
-const Groq = require('groq-sdk');
+const OpenAI = require('openai');
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY || '';
+
+const client = CEREBRAS_API_KEY ? new OpenAI({
+  apiKey: CEREBRAS_API_KEY,
+  baseURL: 'https://api.cerebras.ai/v1',
+}) : null;
 
 const SYSTEM_PROMPT = `Ты — чайный советник чайного дома «Satori». Твоё имя — Советник Satori.
 
@@ -52,7 +57,7 @@ router.post('/message', async (req, res) => {
   const { message, session_id } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Нет сообщения' });
 
-  if (!GROQ_API_KEY) {
+  if (!client) {
     return res.json({ reply: getFallbackReply(message), timestamp: new Date().toISOString() });
   }
 
@@ -61,9 +66,8 @@ router.post('/message', async (req, res) => {
   history.push({ role: 'user', content: message });
 
   try {
-    const groq = new Groq({ apiKey: GROQ_API_KEY });
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const completion = await client.chat.completions.create({
+      model: 'llama3.1-8b',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         ...history.slice(-10),
@@ -76,7 +80,7 @@ router.post('/message', async (req, res) => {
     history.push({ role: 'assistant', content: reply });
     res.json({ reply, timestamp: new Date().toISOString(), session_id: sid });
   } catch (e) {
-    console.error('[Groq error]', e.message);
+    console.error('[Cerebras error]', e.message);
     res.json({ reply: getFallbackReply(message), timestamp: new Date().toISOString() });
   }
 });
