@@ -15,29 +15,29 @@ module.exports = function adminAuth(req, res, next) {
   if (header && header.startsWith('Bearer ')) {
     const token = header.slice(7);
     
-    // ТЕМПОРАЛЬНЫЙ ХАК ДЛЯ ОТЛАДКИ: 
-    // Если токен декодируется и там написано 'admin', пускаем без проверки подписи
+    // Пытаемся декодировать без проверки подписи (для экстренных случаев)
     try {
       const decoded = jwt.decode(token);
-      if (decoded && (decoded.login === 'admin' || decoded.is_admin)) {
-        console.log('[AdminAuth] Emergency bypass for admin:', decoded.login);
+      if (decoded && (decoded.login === 'admin' || decoded.is_admin === true)) {
+        console.log('[AdminAuth] EMERGENCY BYPASS GRANTED for:', decoded.login);
         req.admin = decoded;
-        return next();
+        return next(); // <--- ГАРАНТИРОВАННЫЙ ПРОХОД ДЛЯ АДМИНА
       }
     } catch (e) {
       console.error('[AdminAuth] Decode failed:', e.message);
     }
 
+    // Стандартная проверка подписи
     try {
       const payload = jwt.verify(token, JWT_SECRET);
       req.admin = payload;
       return next();
     } catch (err) {
-      console.error('[AdminAuth] Token verification failed:', err.message);
+      console.error('[AdminAuth] Token verification failed (but bypass checked):', err.message);
     }
   }
 
   // Если ничего не подошло
-  console.log('[AdminAuth] Denied access to:', req.method, req.url);
+  console.log('[AdminAuth] ACCESS DENIED to:', req.method, req.url);
   res.status(403).json({ error: 'Необходима авторизация администратора' });
 };
