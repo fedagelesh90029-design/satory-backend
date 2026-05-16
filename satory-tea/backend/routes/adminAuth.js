@@ -6,7 +6,7 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 
 const ADMIN_LOGIN    = process.env.ADMIN_LOGIN    || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'satory2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 const JWT_SECRET     = process.env.JWT_SECRET     || 'satory_secret_2026';
 
 router.post('/', (req, res) => {
