@@ -348,4 +348,17 @@ router.post('/:id/unpublish', async (req, res) => {
   res.json({ success: true, message: 'Событие снято с публикации' });
 });
 
+// POST /api/admin/events/test-push — Отправить тестовый пуш всем (для отладки)
+router.post('/test-push', adminAuth, async (req, res) => {
+  const { title, body } = req.body;
+  const users = await db.users.find({ push_token: { $exists: true, $ne: null } });
+  
+  console.log(`[push] Тестовая отправка на ${users.length} устройств`);
+  
+  const { broadcastPush } = require('../services/pushService');
+  await broadcastPush(title || 'Тест', body || 'Проверка пушей', { type: 'test' });
+  
+  res.json({ success: true, sent_to: users.length });
+});
+
 module.exports = router;

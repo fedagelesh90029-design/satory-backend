@@ -36,10 +36,28 @@ export default function ProfileScreen() {
   const progress = Math.min(bonusBalance / maxPoints, 1);
   const toGold = Math.max(0, 1000 - bonusBalance);
 
-  // ... (items definitions unchanged) ...
+  const accountItems = [
+    { icon: 'person-outline',   label: 'Личные данные',        onPress: () => router.push('/personal-data') },
+    { icon: 'heart-outline',    label: 'Избранное',            onPress: () => router.push('/favorites') },
+    { icon: 'bag-outline',      label: 'Мои заказы',           onPress: () => router.push('/orders') },
+    { icon: 'ribbon-outline',   label: 'Программа лояльности', tag: user.loyalty_status, onPress: () => router.push('/loyalty') },
+    { icon: 'gift-outline',     label: 'История бонусов',      onPress: () => router.push('/transactions') },
+    { icon: 'qr-code-outline',  label: 'Мой QR-код',          onPress: () => router.push('/qr') },
+  ];
+
+  const appItems = [
+    { icon: 'notifications-outline', label: 'Уведомления',        onPress: () => router.push('/notifications') },
+    { icon: 'settings-outline',      label: 'Настройки',          onPress: () => router.push('/settings') },
+    { icon: 'shield-outline',        label: 'Конфиденциальность', onPress: () => router.push('/privacy') },
+  ];
+
+  const supportItems = [
+    { icon: 'help-circle-outline', label: 'Помощь и FAQ',         onPress: () => router.push('/help') },
+    { icon: 'star-outline',        label: 'Оценить приложение',   onPress: () => router.push('/rate') },
+  ];
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { paddingTop: Math.max(insets.top, 20) }]} showsVerticalScrollIndicator={false}>
       {/* User card */}
       <View style={styles.userCard}>
         <View style={styles.avatarBox}>

@@ -43,11 +43,19 @@ app.use('/api/categories', async (req, res) => {
   res.json(cats);
 });
 
-// Статические файлы для кассира
-app.use(express.static(path.join(__dirname, 'public')));
-
 // Статические файлы для загрузок (фото товаров и т.д.)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Статические файлы приложения (веб-версия и кассир)
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/api/health', (_, res) => res.json({ status: 'ok', app: 'Satori Tea' }));
+
+// SPA Routing: Любой маршрут, который не API, отдает index.html
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found' });
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Запуск cron-задач и сервисов
 require('./services/fileWatcher').initWatcher();
@@ -57,8 +65,6 @@ require('./services/iikoApiSync').initIikoApiSync();
 
 // Запуск Telegram-бота (polling)
 require('./services/telegramBot').startPolling();
-
-app.get('/api/health', (_, res) => res.json({ status: 'ok', app: 'Satori Tea' }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`Satori backend running on port ${PORT}`));

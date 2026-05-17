@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, Image, TouchableOpacity,
-  Dimensions, Modal, StatusBar, SafeAreaView, ActivityIndicator,
+  Dimensions, Modal, StatusBar, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { apiFetch, MEDIA_BASE } from '../constants/api';
@@ -13,6 +14,7 @@ const COLS = 3;
 const CELL = (width - 4) / COLS;
 
 export default function GalleryScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)'); };
   const [items, setItems]       = useState<any[]>([]);
@@ -43,15 +45,13 @@ export default function GalleryScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* Header */}
-      <SafeAreaView>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={goBack} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color={Colors.white} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Галерея</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </SafeAreaView>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={24} color={Colors.white} />
+        </TouchableOpacity>
+        <Text style={styles.title}>Галерея</Text>
+        <View style={{ width: 40 }} />
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingBottom: 12,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 20,

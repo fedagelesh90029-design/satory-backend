@@ -25,6 +25,7 @@ async function seed() {
   const count = await db.products.count({});
   if (count > 0) return;
 
+  /*
   await db.products.insert([
     { name: 'Золотой Дворец', category: 'Шу Пуэр', description: 'Насыщенный шу пуэр с нотами земли и древесины', year: 2019, weight: '357г', price: 1890, rating: 4.9, reviews_count: 127, badge: 'Хит' },
     { name: 'Весенний Юннань', category: 'Шэн Пуэр', description: 'Свежий шэн пуэр с цветочными нотами', year: 2022, weight: '200г', price: 2450, rating: 4.8, reviews_count: 84, badge: 'Новинка' },
@@ -33,8 +34,9 @@ async function seed() {
     { name: 'Белый Пион', category: 'Белый', description: 'Нежный белый чай с цветочным ароматом', year: 2023, weight: '50г', price: 980, rating: 4.6, reviews_count: 31, badge: null },
     { name: 'Да Хун Пао', category: 'Улун', description: 'Классический улун с минеральным вкусом', year: 2022, weight: '100г', price: 3200, rating: 4.9, reviews_count: 98, badge: 'Хит' },
   ]);
+  */
 
-  console.log('✅ База данных заполнена');
+  console.log('✅ База данных готова (сид пропущен)');
 }
 
 seed().catch(console.error);

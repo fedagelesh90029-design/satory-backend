@@ -1985,7 +1985,16 @@ const _origRenderProducts = renderProducts;
 // ════════════════════════════════════════════════════════════
 async function renderSettings() {
   document.getElementById('main').innerHTML=`
-    <div class="page-header"><h1>⚙️ Настройки отображения</h1></div>
+    <div class="page-header"><h1>⚙️ Настройки</h1></div>
+    
+    <div class="card">
+      <h2>📱 Push-уведомления (Отладка)</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+        Отправить тестовое уведомление всем пользователям, у которых зарегистрирован push-токен.
+      </p>
+      <button class="btn btn-primary" onclick="sendTestPush()">🚀 Отправить тестовый пуш всем</button>
+    </div>
+
     <div class="card" id="settings-wrap"><p class="empty">Загрузка...</p></div>`;
   const s = await api('GET','/api/admin/settings/display'); if(!s) return;
   const fields = [
@@ -2013,6 +2022,12 @@ async function renderSettings() {
 async function saveSetting(key, val) {
   const r = await api('PUT','/api/admin/settings/display',{[key]:val});
   if(r){ toast('Сохранено'); const span = document.querySelector(`#st-${key}`)?.nextElementSibling; if(span) span.textContent=val?'Да':'Нет'; }
+}
+
+async function sendTestPush() {
+  if(!confirm('Отправить тестовое уведомление всем пользователям с push-токенами?')) return;
+  const r = await api('POST', '/api/admin/events/test-push', { title: '🍵 Satori Tea', body: 'Проверка пуш-уведомлений работает!' });
+  if(r) toast('Пуш отправлен');
 }
 
 // ── Boot ──────────────────────────────────────────────────────

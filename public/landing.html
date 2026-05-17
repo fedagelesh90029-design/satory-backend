@@ -169,6 +169,23 @@ footer{
 .footer-links a:hover{color:var(--gold)}
 .footer-copy{color:var(--muted);font-size:13px}
 
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(10px);padding:20px}
+.modal-overlay.active{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:24px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;position:relative;animation:modalIn .3s ease-out}
+@keyframes modalIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-close{position:absolute;top:20px;right:20px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);border:1px solid var(--border);color:#fff;font-size:24px;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.modal-close:hover{background:rgba(255,255,255,.1)}
+.modal-img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#111}
+.modal-content{padding:40px}
+.modal-date{display:inline-block;background:rgba(201,168,76,.15);color:var(--gold);padding:6px 14px;border-radius:20px;font-size:14px;font-weight:700;margin-bottom:20px}
+.modal h2{font-size:32px;font-weight:800;margin-bottom:16px;line-height:1.2}
+.modal-desc{color:var(--muted-l);line-height:1.8;font-size:16px;margin-bottom:32px;white-space:pre-wrap}
+.modal-footer{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:32px}
+.modal-price{font-size:24px;font-weight:800;color:var(--gold)}
+.modal-btn{background:var(--gold);color:#0A0A0A;padding:14px 28px;border-radius:14px;text-decoration:none;font-weight:800;font-size:16px;transition:transform .2s}
+.modal-btn:hover{transform:scale(1.02)}
+
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
   nav{padding:16px 20px}
@@ -189,6 +206,8 @@ footer{
   .events-header{flex-direction:column;align-items:flex-start;gap:12px}
   .footer-links{gap:16px}
   .nav-app{padding:8px 16px;font-size:12px}
+  .modal-content{padding:24px}
+  .modal h2{font-size:24px}
 }
 </style>
 </head>
@@ -203,7 +222,7 @@ footer{
     <li><a href="#reviews">Отзывы</a></li>
     <li><a href="#contacts">Контакты</a></li>
   </ul>
-  <a href="/download.html" class="nav-app">Скачать приложение</a>
+  <a href="javascript:alert('Скоро!')" class="nav-app">Скоро</a>
 </nav>
 
 <!-- HERO -->
@@ -226,7 +245,7 @@ footer{
         <p>У нас вы найдёте редкие китайские улуны, изысканные японские сенча, ароматные индийские дарджилинги и многое другое. Каждая чашка — это путешествие в мир вкуса и аромата.</p>
       </div>
       <div class="about-img">
-        <img src="drink.jpg" alt="Холодный чай с лаймом" loading="lazy">
+        <img src="about.jpg" alt="О чайной Satori" loading="lazy">
       </div>
     </div>
 
@@ -402,11 +421,13 @@ footer{
       <a href="#reviews">Отзывы</a>
       <a href="tel:+79890887444">+7 (989) 088-74-44</a>
       <a href="https://vk.com/satori_tea_sochi" target="_blank">ВКонтакте</a>
-      <a href="/download.html">Приложение</a>
+      <a href="javascript:alert('Скоро!')">Приложение</a>
     </div>
     <p class="footer-copy">© 2026 SATORI. Все права защищены.</p>
   </div>
 </footer>
+
+<div class="modal-overlay" id="event-modal"></div>
 
 <script>
 // Nav scroll effect
@@ -414,11 +435,14 @@ window.addEventListener('scroll', () => {
   document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 50);
 });
 
+let _events = [];
+
 // Load events from API
 async function loadEvents() {
   try {
     const res = await fetch('/api/events');
     const events = await res.json();
+    _events = events;
     const grid = document.getElementById('events-grid');
 
     const active = events.filter(e => e.is_active !== false).slice(0, 4);
@@ -432,7 +456,7 @@ async function loadEvents() {
       const dateStr = date ? date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'Скоро';
       const price = e.price > 0 ? `${Number(e.price).toLocaleString('ru')} ₽` : 'Бесплатно';
       return `
-        <a href="#event-${e._id}" class="event-card" onclick="showEvent('${e._id}')">
+        <div class="event-card" onclick="showEvent('${e._id}')">
           <div class="event-card-top">
             <div class="event-date">📅 ${dateStr}</div>
             <span class="event-arrow">›</span>
@@ -440,11 +464,10 @@ async function loadEvents() {
           <h3>${e.title}</h3>
           <p>${(e.description || '').replace(/<[^>]+>/g,'').slice(0,100)}${(e.description||'').length > 100 ? '...' : ''}</p>
           <div class="event-price">${price}</div>
-        </a>`;
+        </div>`;
     }).join('');
   } catch(e) {
-    document.getElementById('events-grid').innerHTML =
-      '<div class="events-empty">Не удалось загрузить мероприятия</div>';
+    console.error('Events load error:', e);
   }
 }
 
@@ -455,14 +478,53 @@ async function loadGallery() {
     const items = await res.json();
     if (!items.length) return;
     const grid = document.getElementById('gallery-grid');
-    const BASE = '';
     grid.innerHTML = items.slice(0,5).map((item, i) => `
       <div class="gallery-item" ${i===0?'style="min-height:400px"':''}>
-        <img src="${item.image_url.startsWith('http') ? item.image_url : BASE + item.image_url}"
-             alt="${item.caption||'Галерея'}" loading="lazy">
+        <img src="${item.image_url}" alt="Галерея" loading="lazy">
       </div>`).join('');
   } catch(e) {}
 }
+
+function showEvent(id) {
+  const e = _events.find(x => x._id === id);
+  if(!e) return;
+
+  const date = e.date ? new Date(e.date) : null;
+  const dateStr = date ? date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'Скоро';
+  
+  const modal = document.getElementById('event-modal');
+  modal.innerHTML = `
+    <div class="modal">
+      <button class="modal-close" onclick="closeEventModal()">×</button>
+      ${e.image_url ? `<img src="${e.image_url}" class="modal-img">` : ''}
+      <div class="modal-content">
+        <div class="modal-date">📅 ${dateStr}</div>
+        <h2>${e.title}</h2>
+        <div class="modal-desc">${e.description || ''}</div>
+        <div class="modal-footer">
+          <div class="modal-price">${e.price > 0 ? Number(e.price).toLocaleString('ru') + ' ₽' : 'Бесплатно'}</div>
+          <a href="javascript:alert('Скоро!')" class="modal-btn">Записаться</a>
+        </div>
+      </div>
+    </div>`;
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEventModal() {
+  const modal = document.getElementById('event-modal');
+  modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('event-modal').addEventListener('click', (e) => {
+  if(e.target.id === 'event-modal') closeEventModal();
+});
+
+// Close modal on escape
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeEventModal();
+});
 
 loadEvents();
 loadGallery();
