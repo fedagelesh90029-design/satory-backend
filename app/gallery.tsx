@@ -87,7 +87,7 @@ export default function GalleryScreen() {
         onRequestClose={() => setSelected(null)}
       >
         <View style={styles.lightbox}>
-          <TouchableOpacity style={styles.lbClose} onPress={() => setSelected(null)}>
+          <TouchableOpacity style={[styles.lbClose, { top: Math.max(insets.top, 40) }]} onPress={() => setSelected(null)}>
             <Ionicons name="close" size={28} color={Colors.white} />
           </TouchableOpacity>
 
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   lbClose: {
-    position: 'absolute', top: 52, right: 20,
+    position: 'absolute', right: 20,
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center', justifyContent: 'center', zIndex: 10,

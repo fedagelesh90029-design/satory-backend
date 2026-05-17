@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   FlatList, Dimensions, ImageBackground,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/theme';
@@ -10,11 +11,14 @@ import { apiFetch } from '../../constants/api';
 import { SatoryLogoFull } from '../../components/SatoryLogo';
 import { ProductCard } from '../../components/ProductCard';
 import { Banner } from '../../components/Banner';
+import { useCart } from '../../context/CartContext';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { add } = useCart();
   const [products, setProducts] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
 
@@ -31,7 +35,7 @@ export default function HomeScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <View>
           <Text style={styles.welcome}>ДОБРО ПОЖАЛОВАТЬ В</Text>
           <SatoryLogoFull size={36} />
@@ -97,18 +101,25 @@ export default function HomeScreen() {
 
         {/* Featured */}
         <View style={styles.section}>
-          <div style={styles.sectionHeader}>
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Избранное</Text>
             <TouchableOpacity onPress={() => router.push('/(tabs)/catalog')}>
               <Text style={styles.seeAll}>Все товары ›</Text>
             </TouchableOpacity>
-          </div>
+          </View>
           <View style={styles.grid}>
             {featured.slice(0, 4).map(item => (
               <View key={item._id || item.id} style={{ width: '50%' }}>
                 <ProductCard
                   item={item}
                   onPress={() => router.push({ pathname: '/product', params: { id: item._id || item.id } })}
+                  onCart={(qty) => {
+                    if (qty) {
+                      for(let i=0; i<qty; i++) add(item);
+                    } else {
+                      add(item);
+                    }
+                  }}
                 />
               </View>
             ))}
@@ -160,7 +171,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16,
+    paddingHorizontal: 20, paddingBottom: 16,
   },
   welcome: { color: Colors.gray, fontSize: 11, letterSpacing: 2, marginBottom: 4 },
   addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },

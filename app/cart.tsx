@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Platform,
+  Platform, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +9,6 @@ import { useRouter } from 'expo-router';
 import { useCart } from '../context/CartContext';
 import { Colors } from '../constants/theme';
 import { MEDIA_BASE } from '../constants/api';
-import { Image } from 'react-native';
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
@@ -61,7 +60,7 @@ export default function CartScreen() {
                   )}
                   <Text style={styles.itemPrice}>{item.price} ₽</Text>
                 </View>
-                <TouchableOpacity onPress={() => remove(item.cart_id || item._id)}>
+                <TouchableOpacity onPress={() => remove(item.cart_id || item._id, JSON.stringify(item.options))}>
                   <Ionicons name="trash-outline" size={20} color={Colors.gray} />
                 </TouchableOpacity>
               </View>

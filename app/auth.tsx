@@ -44,12 +44,10 @@ export default function AuthScreen() {
     }, 1000);
   };
 
-  const formatPhone = (raw: string) => {
-    // Если пользователь удаляет символы, мы не должны форматировать слишком агрессивно
+  const formatPhone = (raw: string, isDeleting: boolean = false) => {
     const digits = raw.replace(/\D/g, '');
     if (digits.length === 0) return '';
     
-    // Если номер начинается с 7 или 8 (РФ)
     if (digits.startsWith('7') || digits.startsWith('8')) {
       const d = digits.slice(1, 11);
       let r = '+7';
@@ -61,8 +59,18 @@ export default function AuthScreen() {
       }
       return r;
     }
-    // Для других стран просто + и цифры
     return '+' + digits.slice(0, 15);
+  };
+
+  const onPhoneChange = (text: string) => {
+    // Проверяем, удаляет ли пользователь символы
+    const isDeleting = text.length < phone.length;
+    if (isDeleting) {
+      // Если удаляем, просто убираем последний символ без агрессивного форматирования
+      setPhone(text);
+    } else {
+      setPhone(formatPhone(text));
+    }
   };
 
   const sendOtp = async () => {
@@ -89,13 +97,8 @@ export default function AuthScreen() {
     try {
       const resp = await apiFetch('/auth/send-otp-telegram', { method: 'POST', body: JSON.stringify({ phone }) });
       if (resp.tg_link) {
-        // Первый раз — нужно открыть бота для привязки
         await Linking.openURL(resp.tg_link);
-        Alert.alert(
-          'Откройте Telegram',
-          'Нажмите «Старт» в боте Satori Tea — он пришлёт вам код подтверждения.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Откройте Telegram', 'Нажмите «Старт» в боте Satori Tea — он пришлёт вам код.', [{ text: 'OK' }]);
       }
       setDevCode(resp.dev_code || null);
       setSentVia('telegram');
@@ -113,49 +116,31 @@ export default function AuthScreen() {
     if (code.length < 6) { Alert.alert('Ошибка', 'Введите 6-значный код'); return; }
     setLoading(true);
     try {
-      const data = await apiFetch('/auth/verify-otp', {
-        method: 'POST',
-        body: JSON.stringify({ phone, code }),
-      });
+      const data = await apiFetch('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ phone, code }) });
       if (data.is_new) {
-        setPendingToken(data.token);
-        setPendingUser(data.user);
-        setMode('name');
+        setPendingToken(data.token); setPendingUser(data.user); setMode('name');
         return;
       }
       await loginWithPhone(data.token, data.user);
       await showWelcomeNotification(data.user.name || 'Гость', false);
       router.replace('/(tabs)/profile');
-    } catch (e: any) {
-      Alert.alert('Ошибка', e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) { Alert.alert('Ошибка', e.message); } finally { setLoading(false); }
   };
 
   const saveName = async () => {
     if (!name.trim()) { Alert.alert('Ошибка', 'Введите имя'); return; }
-    if (!pendingToken || !pendingUser) { Alert.alert('Ошибка', 'Сессия истекла, начните заново'); setMode('phone'); return; }
+    if (!pendingToken || !pendingUser) { setMode('phone'); return; }
     setLoading(true);
     try {
-      // Обновляем имя через /api/user/me
-      await apiFetch('/user/me', {
-        method: 'PUT',
-        body: JSON.stringify({ name }),
-      }, pendingToken);
+      await apiFetch('/user/me', { method: 'PUT', body: JSON.stringify({ name }) }, pendingToken);
       await loginWithPhone(pendingToken, { ...pendingUser, name });
       await showWelcomeNotification(name, true);
       router.replace('/(tabs)/profile');
-    } catch (e: any) {
-      Alert.alert('Ошибка', e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) { Alert.alert('Ошибка', e.message); } finally { setLoading(false); }
   };
 
   const handleOtpChange = (val: string, idx: number) => {
     if (val.length > 1) {
-      // Поддержка вставки кода целиком
       const pasted = val.slice(0, 6).split('');
       const newOtp = [...otp];
       pasted.forEach((char, i) => { if (idx + i < 6) newOtp[idx + i] = char; });
@@ -164,24 +149,21 @@ export default function AuthScreen() {
       otpRefs.current[nextIdx]?.focus();
       return;
     }
-
     const newOtp = [...otp];
     newOtp[idx] = val;
     setOtp(newOtp);
-    
-    if (val && idx < 5) {
-      otpRefs.current[idx + 1]?.focus();
-    }
+    if (val && idx < 5) otpRefs.current[idx + 1]?.focus();
   };
 
   const handleOtpKeyPress = (e: any, idx: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[idx] && idx > 0) {
-      otpRefs.current[idx - 1]?.focus();
+    if (e.nativeEvent.key === 'Backspace') {
+      if (!otp[idx] && idx > 0) {
+        otpRefs.current[idx - 1]?.focus();
+      }
     }
   };
 
-
-  // ── Экран ввода телефона ──────────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────────
   if (mode === 'phone') return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
@@ -189,10 +171,8 @@ export default function AuthScreen() {
           <SatoryLogoFull size={44} />
           <Text style={styles.tagline}>Чайная культура</Text>
         </View>
-
         <Text style={styles.heading}>Вход по номеру телефона</Text>
         <Text style={styles.sub}>Отправим код подтверждения</Text>
-
         <View style={styles.phoneRow}>
           <View style={styles.flagBox}><Text style={styles.flag}>🇷🇺</Text></View>
           <TextInput
@@ -200,29 +180,20 @@ export default function AuthScreen() {
             placeholder="+7 (___) ___-__-__"
             placeholderTextColor={Colors.gray}
             value={phone}
-            onChangeText={v => setPhone(formatPhone(v))}
+            onChangeText={onPhoneChange}
             keyboardType="phone-pad"
             maxLength={18}
           />
         </View>
-
-        <TouchableOpacity
-          style={[styles.tgBtn, tgLoading && styles.btnDisabled]}
-          onPress={sendOtpViaTelegram}
-          disabled={tgLoading}
-        >
+        <TouchableOpacity style={[styles.tgBtn, tgLoading && styles.btnDisabled]} onPress={sendOtpViaTelegram} disabled={tgLoading}>
           <Ionicons name="paper-plane-outline" size={18} color="#fff" />
           <Text style={styles.tgBtnText}>{tgLoading ? 'Открываем...' : 'Получить код в Telegram'}</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Назад</Text>
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Text style={styles.backText}>← Назад</Text></TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 
-  // ── Экран ввода OTP ───────────────────────────────────────────────────────
   if (mode === 'otp') return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
@@ -230,23 +201,11 @@ export default function AuthScreen() {
           <Ionicons name="chevron-back" size={20} color={Colors.gray} />
           <Text style={styles.backText}>Изменить номер</Text>
         </TouchableOpacity>
-
-        <View style={styles.logoBox}>
-          <SatoryLogoFull size={36} />
-        </View>
-
+        <View style={styles.logoBox}><SatoryLogoFull size={36} /></View>
         <Text style={styles.heading}>Введите код</Text>
         <Text style={styles.sub}>
           {sentVia === 'telegram' ? `Отправили код в Telegram на номер ${phone}` : `Отправили SMS на ${phone}`}
         </Text>
-
-        {devCode && (
-          <View style={{ backgroundColor: Colors.card, borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: Colors.gold + '44' }}>
-            <Text style={{ color: Colors.gray, fontSize: 12, textAlign: 'center', marginBottom: 4 }}>Код подтверждения</Text>
-            <Text style={{ color: Colors.gold, fontSize: 28, fontWeight: '800', textAlign: 'center', letterSpacing: 6 }}>{devCode}</Text>
-          </View>
-        )}
-
         <View style={styles.otpRow}>
           {otp.map((digit, i) => (
             <TextInput
@@ -255,26 +214,17 @@ export default function AuthScreen() {
               style={[styles.otpCell, digit && styles.otpCellFilled]}
               value={digit}
               onChangeText={v => handleOtpChange(v, i)}
+              onKeyPress={e => handleOtpKeyPress(e, i)}
               keyboardType="number-pad"
               maxLength={1}
               selectTextOnFocus
             />
           ))}
         </View>
-
-        <TouchableOpacity
-          style={[styles.btn, loading && styles.btnDisabled]}
-          onPress={verifyOtp}
-          disabled={loading}
-        >
+        <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={verifyOtp} disabled={loading}>
           <Text style={styles.btnText}>{loading ? 'Проверка...' : 'Подтвердить'}</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.altBtn, countdown > 0 && styles.altBtnDisabled]}
-          onPress={countdown === 0 ? sendOtp : undefined}
-          disabled={countdown > 0}
-        >
+        <TouchableOpacity style={[styles.altBtn, countdown > 0 && styles.altBtnDisabled]} onPress={countdown === 0 ? sendOtp : undefined} disabled={countdown > 0}>
           <Text style={[styles.altText, countdown > 0 && { color: Colors.gray }]}>
             {countdown > 0 ? `Повторить через ${countdown} сек` : 'Отправить код повторно'}
           </Text>
@@ -283,24 +233,13 @@ export default function AuthScreen() {
     </KeyboardAvoidingView>
   );
 
-  // ── Экран ввода имени (новый пользователь) ────────────────────────────────
   if (mode === 'name') return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        <View style={styles.logoBox}>
-          <SatoryLogoFull size={44} />
-        </View>
+        <View style={styles.logoBox}><SatoryLogoFull size={44} /></View>
         <Text style={styles.heading}>Как вас зовут?</Text>
         <Text style={styles.sub}>Это имя будет отображаться в профиле</Text>
-        <TextInput
-          style={[styles.input, { marginBottom: 16 }]}
-          placeholder="Ваше имя"
-          placeholderTextColor={Colors.gray}
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-          autoFocus
-        />
+        <TextInput style={[styles.input, { marginBottom: 16 }]} placeholder="Ваше имя" placeholderTextColor={Colors.gray} value={name} onChangeText={setName} autoCapitalize="words" autoFocus />
         <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={saveName} disabled={loading}>
           <Text style={styles.btnText}>{loading ? 'Сохранение...' : 'Продолжить'}</Text>
         </TouchableOpacity>
@@ -318,20 +257,11 @@ const styles = StyleSheet.create({
   tagline: { color: Colors.gray, fontSize: 13, letterSpacing: 3, marginTop: 8, textTransform: 'uppercase' },
   heading: { color: Colors.white, fontSize: 24, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
   sub: { color: Colors.gray, fontSize: 14, textAlign: 'center', marginBottom: 28 },
-  phoneRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.card, borderRadius: 14,
-    borderWidth: 1, borderColor: Colors.border, marginBottom: 16, overflow: 'hidden',
-  },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, marginBottom: 16, overflow: 'hidden' },
   flagBox: { paddingHorizontal: 14, paddingVertical: 14, borderRightWidth: 1, borderRightColor: Colors.border },
   flag: { fontSize: 22 },
   phoneInput: { flex: 1, color: Colors.white, fontSize: 17, paddingHorizontal: 14, paddingVertical: 14 },
-  input: {
-    backgroundColor: Colors.card, borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 14,
-    color: Colors.white, fontSize: 15,
-    borderWidth: 1, borderColor: Colors.border, marginBottom: 12,
-  },
+  input: { backgroundColor: Colors.card, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, color: Colors.white, fontSize: 15, borderWidth: 1, borderColor: Colors.border, marginBottom: 12 },
   btn: { backgroundColor: Colors.gold, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: Colors.bg, fontSize: 16, fontWeight: '700' },
@@ -344,10 +274,6 @@ const styles = StyleSheet.create({
   backText: { color: Colors.gray, fontSize: 14 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 28 },
-  otpCell: {
-    width: 46, height: 56, borderRadius: 12,
-    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border,
-    textAlign: 'center', fontSize: 22, fontWeight: '700', color: Colors.white,
-  },
+  otpCell: { width: 46, height: 56, borderRadius: 12, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, textAlign: 'center', fontSize: 22, fontWeight: '700', color: Colors.white },
   otpCellFilled: { borderColor: Colors.gold },
 });
