@@ -1,12 +1,21 @@
-export const API_BASE = 'http://72.56.245.188:3000/api'; // Timeweb VPS
-// export const API_BASE = 'https://satory-backend-production.up.railway.app/api'; // Railway (Inactive)
-export const MEDIA_BASE = API_BASE.replace('/api', '');
+export const API_BASE = 'http://72.56.245.188/api';
+// export const API_BASE = 'http://localhost:3000/api';
 
-export async function apiFetch(path: string, options?: RequestInit, token?: string | null) {
-  const headers: Record<string, string> = {
+export const MEDIA_BASE = 'http://72.56.245.188';
+
+/**
+ * Универсальный fetch для API
+ */
+export async function apiFetch(path: string, options: any = {}, token?: string | null) {
+  const headers = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
   };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Ошибка сети' }));

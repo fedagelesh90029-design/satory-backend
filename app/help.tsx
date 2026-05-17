@@ -45,7 +45,7 @@ export default function HelpScreen() {
             <Ionicons name="open-outline" size={14} color={Colors.gray} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.contactRow, { borderTopWidth: 1, borderTopColor: Colors.border }]}
-            onPress={() => Linking.openURL('tel:+7')}>
+            onPress={() => Linking.openURL('tel:+79990000000')}>
             <Ionicons name="call-outline" size={20} color={Colors.gold} />
             <Text style={styles.contactText}>Позвонить</Text>
             <Ionicons name="open-outline" size={14} color={Colors.gray} />

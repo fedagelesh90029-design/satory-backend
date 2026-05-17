@@ -23,7 +23,9 @@ export default function HomeScreen() {
     apiFetch('/events').then(setEvents).catch(() => {});
   }, []);
 
-  const featured = products.filter(p => p.badge);
+  const featured = products.filter(p => p.badge).length > 0 
+    ? products.filter(p => p.badge) 
+    : products.slice(0, 8);
   const upcoming = events.slice(0, 2);
 
   return (
@@ -89,16 +91,16 @@ export default function HomeScreen() {
       </View>
 
       {/* Featured */}
-      <View style={styles.section}>
+      <View style={[styles.section, { paddingHorizontal: 20 }]}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Избранное</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/catalog')}>
             <Text style={styles.seeAll}>Все товары ›</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.grid}>
+        <View style={[styles.grid, { marginHorizontal: -4 }]}>
           {featured.slice(0, 4).map(item => (
-            <View key={item._id || item.id} style={{ width: (width - 40) / 2 }}>
+            <View key={item._id || item.id} style={{ width: '50%' }}>
               <ProductCard
                 item={item}
                 onPress={() => router.push({ pathname: '/product', params: { id: item._id || item.id } })}

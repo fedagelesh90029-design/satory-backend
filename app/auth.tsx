@@ -45,18 +45,24 @@ export default function AuthScreen() {
   };
 
   const formatPhone = (raw: string) => {
+    // Если пользователь удаляет символы, мы не должны форматировать слишком агрессивно
     const digits = raw.replace(/\D/g, '');
     if (digits.length === 0) return '';
+    
+    // Если номер начинается с 7 или 8 (РФ)
     if (digits.startsWith('7') || digits.startsWith('8')) {
       const d = digits.slice(1, 11);
       let r = '+7';
       if (d.length > 0) r += ' (' + d.slice(0, 3);
-      if (d.length >= 3) r += ') ' + d.slice(3, 6);
-      if (d.length >= 6) r += '-' + d.slice(6, 8);
-      if (d.length >= 8) r += '-' + d.slice(8, 10);
+      if (d.length >= 3) {
+        r += ') ' + d.slice(3, 6);
+        if (d.length >= 6) r += '-' + d.slice(6, 8);
+        if (d.length >= 8) r += '-' + d.slice(8, 10);
+      }
       return r;
     }
-    return '+' + digits.slice(0, 12);
+    // Для других стран просто + и цифры
+    return '+' + digits.slice(0, 15);
   };
 
   const sendOtp = async () => {
@@ -147,15 +153,33 @@ export default function AuthScreen() {
     }
   };
 
-
-
   const handleOtpChange = (val: string, idx: number) => {
+    if (val.length > 1) {
+      // Поддержка вставки кода целиком
+      const pasted = val.slice(0, 6).split('');
+      const newOtp = [...otp];
+      pasted.forEach((char, i) => { if (idx + i < 6) newOtp[idx + i] = char; });
+      setOtp(newOtp);
+      const nextIdx = Math.min(idx + pasted.length, 5);
+      otpRefs.current[nextIdx]?.focus();
+      return;
+    }
+
     const newOtp = [...otp];
-    newOtp[idx] = val.slice(-1);
+    newOtp[idx] = val;
     setOtp(newOtp);
-    if (val && idx < 5) otpRefs.current[idx + 1]?.focus();
-    if (!val && idx > 0) otpRefs.current[idx - 1]?.focus();
+    
+    if (val && idx < 5) {
+      otpRefs.current[idx + 1]?.focus();
+    }
   };
+
+  const handleOtpKeyPress = (e: any, idx: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !otp[idx] && idx > 0) {
+      otpRefs.current[idx - 1]?.focus();
+    }
+  };
+
 
   // ── Экран ввода телефона ──────────────────────────────────────────────────
   if (mode === 'phone') return (

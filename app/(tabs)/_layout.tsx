@@ -39,7 +39,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
       {/* Chat FAB — поверх таббара, правый угол */}
       <ChatFAB />
 
-      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.tabBar, { height: 60 + Math.max(insets.bottom - 10, 0), paddingBottom: Math.max(insets.bottom, 12) }]}>
         {tabs.map((tab, i) => {
           const isFocused = state.index === i;
           return (
