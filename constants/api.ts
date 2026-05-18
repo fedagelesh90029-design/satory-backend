@@ -1,5 +1,6 @@
-export const API_BASE = 'http://72.56.245.188/api'; // Timeweb VPS
+// export const API_BASE = 'http://192.168.31.63:3000/api'; // Local Dev IP
 // export const API_BASE = 'http://localhost:3000/api'; // Local Dev
+export const API_BASE = 'http://72.56.245.188/api'; // Timeweb VPS
 export const MEDIA_BASE = API_BASE.replace('/api', '');
 
 export async function apiFetch(path: string, options?: RequestInit, token?: string | null) {
