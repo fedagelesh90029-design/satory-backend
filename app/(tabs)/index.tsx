@@ -114,7 +114,10 @@ export default function HomeScreen() {
                   item={item}
                   onPress={() => router.push({ pathname: '/product', params: { id: item._id || item.id } })}
                   onCart={(qty) => {
-                    if (qty) {
+                    const isTeaToGo = item.name?.toLowerCase().includes('с собой');
+                    if (isTeaToGo) {
+                      router.push({ pathname: '/product', params: { id: item._id || item.id } });
+                    } else if (qty) {
                       for(let i=0; i<qty; i++) add(item);
                     } else {
                       add(item);
