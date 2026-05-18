@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Image, RefreshControl, Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -104,6 +105,7 @@ function NewsCard({ item, onPress }: { item: any; onPress: () => void }) {
 
 // ─── Главный экран ────────────────────────────────────────────────────────────
 export default function EventsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [tab, setTab] = useState<'events' | 'news'>('events');
   const [events, setEvents] = useState<any[]>([]);
@@ -139,7 +141,7 @@ export default function EventsScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <Text style={styles.title}>Мероприятия</Text>
         {/* Вкладки */}
         <View style={styles.tabs}>

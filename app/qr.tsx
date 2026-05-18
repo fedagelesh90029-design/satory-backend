@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ActivityIndicator, SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
@@ -13,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 const QR_TTL = 300; // 5 минут
 
 export default function QRScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { token, user } = useAuth();
   const [qrData, setQrData] = useState<string | null>(null);
@@ -66,9 +68,9 @@ export default function QRScreen() {
   const timerColor = secondsLeft > 60 ? Colors.green : secondsLeft > 20 ? Colors.gold : Colors.red;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={Colors.white} />
         </TouchableOpacity>
@@ -145,7 +147,7 @@ export default function QRScreen() {
           После того как кассир начислит или спишет бонусы в iiko, баланс обновится в приложении при следующей синхронизации
         </Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -153,7 +155,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

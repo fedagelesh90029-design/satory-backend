@@ -20,12 +20,14 @@ export default function ProductScreen() {
   const { token } = useAuth();
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)/catalog'); };
 
+  const insets = useSafeAreaInsets();
   const [product, setProduct]     = useState<any>(null);
   const [loading, setLoading]     = useState(true);
   const [fav, setFav]             = useState(false);
   const [lightbox, setLightbox]   = useState<number | null>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [display, setDisplay]     = useState<any>({});
+  const [amount, setAmount]       = useState(1);
 
   const [teas, setTeas]           = useState<any[]>([]);
   const [teaModal, setTeaModal]   = useState(false);
@@ -88,6 +90,10 @@ export default function ProductScreen() {
         setDisplay(s);
         setTeas(t);
 
+        if (p.weight && String(p.weight).toLowerCase().includes('г')) {
+          setAmount(10); // Default for weighted tea
+        }
+
         // Check if favorited if token exists
         if (token) {
           const favorites = await apiFetch('/products/favorites/list', {}, token);
@@ -110,10 +116,7 @@ export default function ProductScreen() {
   }, [product]);
 
   const toggleFav = async () => {
-    if (!token) {
-      // Можно было бы редиректнуть на логин, но пока просто ничего не делаем
-      return;
-    }
+    if (!token) return;
     setFavLoading(true);
     try {
       const res = await apiFetch(`/products/${id}/favorite`, { method: 'POST' }, token);
@@ -137,6 +140,10 @@ export default function ProductScreen() {
       tea_price: selectedTea.price,
     } : undefined;
 
+    // If it's weighted tea, we add 'amount' grams. 
+    // In our current CartContext, 'qty' is units. 
+    // We might need to adjust logic if qty 1 = amount grams.
+    // For now, let's keep it simple: price is per unit.
     add(product, options);
     goBack();
   };
@@ -150,6 +157,8 @@ export default function ProductScreen() {
   const totalPrice = selectedTea 
     ? product.price + (selectedTea.price * 6)
     : product.price;
+
+  const isWeighted = product.weight && String(product.weight).toLowerCase().includes('г');
 
   const meta = product.meta || {};
 
@@ -169,7 +178,7 @@ export default function ProductScreen() {
   return (
     <View style={styles.container}>
       {/* Шапка */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { top: insets.top + 10 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={goBack}>
           <Ionicons name="chevron-back" size={22} color={Colors.white} />
         </TouchableOpacity>
@@ -255,6 +264,23 @@ export default function ProductScreen() {
           </View>
           ) : null}
 
+          {/* Выбор количества для чая */}
+          {isWeighted && (
+            <View style={styles.amountBox}>
+              <Text style={styles.amountTitle}>Количество (грамм)</Text>
+              <View style={styles.amountRow}>
+                {[10, 25, 50, 100].map(v => (
+                  <TouchableOpacity key={v} 
+                    style={[styles.amountChip, amount === v && styles.amountChipActive]}
+                    onPress={() => setAmount(v)}
+                  >
+                    <Text style={[styles.amountText, amount === v && styles.amountTextActive]}>{v}г</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* Советы по завариванию */}
           {display.show_brewing_tips !== false && meta.brewing_tips ? (
             <View style={styles.section}>
@@ -275,7 +301,7 @@ export default function ProductScreen() {
 
       {/* Нижняя панель — цена + корзина */}
       {display.show_price !== false && (
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
         <View>
           <Text style={styles.priceLabel}>{selectedTea ? 'Итоговая цена' : 'Цена'}</Text>
           <Text style={styles.price}>{Number(totalPrice).toLocaleString('ru')} ₽</Text>
@@ -345,7 +371,7 @@ export default function ProductScreen() {
       <Modal visible={lightbox !== null} transparent animationType="fade"
         onRequestClose={() => setLightbox(null)}>
         <View style={styles.lightbox}>
-          <TouchableOpacity style={styles.lbClose} onPress={() => setLightbox(null)}>
+          <TouchableOpacity style={[styles.lbClose, { top: insets.top + 20 }]} onPress={() => setLightbox(null)}>
             <Ionicons name="close" size={26} color={Colors.white} />
           </TouchableOpacity>
           {lightbox !== null && (
@@ -382,7 +408,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
   topBar: {
-    position: 'absolute', top: 52, left: 0, right: 0, zIndex: 10,
+    position: 'absolute', left: 0, right: 0, zIndex: 10,
     flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16,
   },
   backBtn: {
@@ -410,6 +436,13 @@ const styles = StyleSheet.create({
   specRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   specLabel: { color: Colors.gray, fontSize: 13, flex: 1 },
   specValue: { color: Colors.white, fontSize: 13, fontWeight: '600' },
+  amountBox: { marginBottom: 20 },
+  amountTitle: { color: Colors.white, fontSize: 14, fontWeight: '600', marginBottom: 10 },
+  amountRow: { flexDirection: 'row', gap: 8 },
+  amountChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
+  amountChipActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
+  amountText: { color: Colors.gray, fontSize: 14, fontWeight: '600' },
+  amountTextActive: { color: Colors.bg },
   section: { marginBottom: 16 },
   sectionTitle: { color: Colors.white, fontSize: 16, fontWeight: '700', marginBottom: 8 },
   sectionText: { color: Colors.grayLight, fontSize: 14, lineHeight: 22 },
@@ -417,7 +450,7 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: Colors.card, borderTopWidth: 1, borderTopColor: Colors.border,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 32,
+    paddingHorizontal: 20, paddingVertical: 16,
   },
   priceLabel: { color: Colors.gray, fontSize: 12, marginBottom: 2 },
   price: { color: Colors.gold, fontSize: 22, fontWeight: '700' },
@@ -428,7 +461,7 @@ const styles = StyleSheet.create({
   cartBtnText: { color: Colors.bg, fontSize: 15, fontWeight: '700' },
   lightbox: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' },
   lbClose: {
-    position: 'absolute', top: 52, right: 20,
+    position: 'absolute', right: 20,
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },

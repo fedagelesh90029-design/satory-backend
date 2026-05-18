@@ -10,15 +10,21 @@ const adminAuth = require('../middleware/adminAuth');
 
 const EVENTS_DIR   = path.join(__dirname, '..', 'uploads', 'events');
 const PRODUCTS_DIR = path.join(__dirname, '..', 'uploads', 'products');
+const PUBLIC_DIR   = path.join(__dirname, '..', 'public');
 
 [EVENTS_DIR, PRODUCTS_DIR].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
 
 const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
+    if (req.query.type === 'system') return cb(null, PUBLIC_DIR);
     cb(null, req.query.type === 'product' ? PRODUCTS_DIR : EVENTS_DIR);
   },
-  filename: (_req, file, cb) => {
-    const ext  = path.extname(file.originalname).toLowerCase();
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (req.query.type === 'system') {
+      const name = req.query.name === 'logo' ? 'Satory.png' : 'drink.jpg';
+      return cb(null, name);
+    }
     const name = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
     cb(null, name);
   },
@@ -33,7 +39,7 @@ const upload = multer({
   },
 });
 
-// POST /api/admin/upload/image?type=event|product
+// POST /api/admin/upload/image?type=event|product|system&name=logo|about
 router.post('/image', adminAuth, (req, res) => {
   upload.single('image')(req, res, (err) => {
     if (err) {
@@ -42,8 +48,13 @@ router.post('/image', adminAuth, (req, res) => {
     }
     if (!req.file) return res.status(400).json({ error: 'Файл не передан (поле: image)' });
 
-    const folder = req.query.type === 'product' ? 'products' : 'events';
-    const url = `/uploads/${folder}/${req.file.filename}`;
+    let url = '';
+    if (req.query.type === 'system') {
+      url = `/${req.file.filename}?t=${Date.now()}`;
+    } else {
+      const folder = req.query.type === 'product' ? 'products' : 'events';
+      url = `/uploads/${folder}/${req.file.filename}`;
+    }
     res.json({ url, filename: req.file.filename });
   });
 });

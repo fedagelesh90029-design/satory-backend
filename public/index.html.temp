@@ -124,7 +124,7 @@ footer{background:var(--bg);border-top:1px solid var(--border);padding:60px 0 40
 <section id="reviews" class="reviews-section">
   <div class="container">
     <h2 class="section-title">Отзывы</h2>
-    <div class="reviews-rating"><div class="reviews-rating-num">4.9</div><div><h3>Яндекс Карты</h3><p>★★★★★</p><p style="font-size:12px;color:var(--muted)">Более 3500 отзывов</p></div></div>
+    <div class="reviews-rating"><div class="reviews-rating-num">5.0</div><div><h3>Яндекс Карты</h3><p>★★★★★</p></div></div>
     <div class="reviews-grid">
       <div class="review-card">
         <div class="review-stars">★★★★★</div>

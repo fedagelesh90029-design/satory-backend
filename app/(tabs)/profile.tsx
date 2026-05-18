@@ -9,7 +9,11 @@ import { Colors } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
 import { SatoryLogoIcon } from '../../components/SatoryLogo';
 
-// ... (STATUS_COLORS definition unchanged) ...
+const STATUS_COLORS: Record<string, string> = {
+  'Бронза': '#CD7F32',
+  'Серебро': '#C0C0C0',
+  'Золото': '#C9A84C',
+};
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();

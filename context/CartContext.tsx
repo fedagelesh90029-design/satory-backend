@@ -5,11 +5,14 @@ interface CartItem {
   name: string;
   price: number;
   category: string;
+  image_url?: string;
+  weight?: string;
   qty: number;
   options?: {
     tea_id?: string;
     tea_name?: string;
     tea_price?: number;
+    weight?: number;
   };
 }
 
@@ -39,15 +42,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return prev.map(i => (i._id === id && JSON.stringify(i.options) === optKey) ? { ...i, qty: i.qty + 1 } : i);
       }
       
-      const price = options?.tea_price 
-        ? product.price + (options.tea_price * 6)
-        : product.price;
+      let price = Number(product.price);
+      
+      // Handle 'Tea to Go' (add tea price for 6 grams)
+      if (options?.tea_price) {
+        price += (Number(options.tea_price) * 6);
+      }
 
       return [...prev, { 
         _id: id, 
         name: product.name, 
         price, 
         category: product.category, 
+        image_url: product.image_url,
+        weight: product.weight,
         qty: 1,
         options 
       }];

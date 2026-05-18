@@ -2,21 +2,64 @@
   "expo": {
     "name": "Satori",
     "slug": "satory-tea",
-    "version": "1.0.0",
+    "owner": "fedoro",
+    "version": "1.3.6",
     "orientation": "portrait",
     "scheme": "satory",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/Satory.png",
+    "splash": {
+      "image": "./assets/Satory.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0A"
+    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.satory.tea"
+      "bundleIdentifier": "com.satory.tea",
+      "icon": "./assets/Satory.png",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
-      "package": "com.satory.tea"
+      "package": "com.satory.tea",
+      "versionCode": 138,
+      "icon": "./assets/Satory.png",
+      "googleServicesFile": "./google-services.json",
+      "navigationBarColor": "#141414",
+      "usesCleartextTraffic": true,
+      "networkSecurityConfig": "./assets/network_security_config.xml",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/Satory.png",
+        "backgroundColor": "#0A0A0A"
+      }
     },
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      "expo-splash-screen",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/Satory.png",
+          "color": "#D4A017",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          },
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ],
     "web": {
       "bundler": "metro",
@@ -26,7 +69,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "3d014938-f9a2-4a6c-90e7-c63c2e0a6b6c"
+        "projectId": "6ec0d7cc-9893-4c37-8c33-e9363b02e5ea"
       }
     }
   }

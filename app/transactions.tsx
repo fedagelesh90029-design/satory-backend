@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TouchableOpacity, SafeAreaView, ActivityIndicator,
+  TouchableOpacity, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/theme';
@@ -30,6 +31,7 @@ function getOp(type: string) {
 }
 
 export default function TransactionsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { token } = useAuth();
   const [txs, setTxs] = useState<Tx[]>([]);
@@ -50,8 +52,8 @@ export default function TransactionsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={Colors.white} />
         </TouchableOpacity>
@@ -60,7 +62,9 @@ export default function TransactionsScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={Colors.gold} style={{ marginTop: 60 }} />
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.gold} size="large" />
+        </View>
       ) : error ? (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={48} color={Colors.red} />
@@ -101,7 +105,7 @@ export default function TransactionsScreen() {
           }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -109,7 +113,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

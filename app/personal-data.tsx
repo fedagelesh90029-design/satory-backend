@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  SafeAreaView, ScrollView, Alert,
+  ScrollView, Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/theme';
@@ -10,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../constants/api';
 
 export default function PersonalDataScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token, refreshUser } = useAuth();
   const [name, setName] = useState(user?.name || '');
@@ -30,8 +32,8 @@ export default function PersonalDataScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={Colors.white} />
         </TouchableOpacity>
@@ -67,13 +69,17 @@ export default function PersonalDataScreen() {
           <Text style={styles.saveBtnText}>{loading ? 'Сохранение...' : 'Сохранить'}</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  header: { 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
+    paddingHorizontal: 16, paddingBottom: 16, 
+    borderBottomWidth: 1, borderBottomColor: Colors.border 
+  },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { color: Colors.white, fontSize: 17, fontWeight: '700' },
   content: { padding: 20, gap: 16 },

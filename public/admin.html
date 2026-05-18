@@ -1306,12 +1306,34 @@ let _gallery = [];
 async function renderGallery() {
   document.getElementById('main').innerHTML = `
     <div class="page-header"><h1>🖼️ Галерея</h1><button class="btn btn-primary" onclick="openGalleryUpload()">+ Добавить фото</button></div>
+    
+    <div class="card" style="margin-bottom:24px">
+      <h3>🌐 Изображения сайта</h3>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Управление логотипом и главным фото лендинга.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="document.getElementById('sys-logo-input').click()">🖼️ Обновить лого (Satory.png)</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('sys-about-input').click()">📸 Обновить фото (drink.jpg)</button>
+      </div>
+      <input type="file" id="sys-logo-input" style="display:none" accept="image/png" onchange="uploadSystemImage('logo', this)">
+      <input type="file" id="sys-about-input" style="display:none" accept="image/jpeg" onchange="uploadSystemImage('about', this)">
+    </div>
+
     <div class="card">
       <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Первое фото (порядок 0) используется как баннер в приложении.</p>
       <div id="g-wrap"><p class="empty">Загрузка...</p></div>
     </div>`;
   _gallery = await api('GET','/api/admin/gallery'); if(!_gallery) return;
   renderGalleryGrid();
+}
+
+async function uploadSystemImage(name, input) {
+  const f = input.files[0]; if(!f) return;
+  const fd = new FormData(); fd.append('image', f);
+  const r = await api('POST', `/api/admin/upload/image?type=system&name=${name}`, fd, true);
+  if(r) {
+    toast('Изображение обновлено! Очистите кэш (Ctrl+F5) на сайте, чтобы увидеть изменения.');
+    input.value = '';
+  }
 }
 
 function renderGalleryGrid() {

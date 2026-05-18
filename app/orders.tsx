@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/theme';
@@ -18,6 +19,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 };
 
 export default function OrdersScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { token } = useAuth();
   const [orders, setOrders]       = useState<any[]>([]);
@@ -47,8 +49,8 @@ export default function OrdersScreen() {
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)/profile'); };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={goBack} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={Colors.white} />
         </TouchableOpacity>
@@ -57,7 +59,9 @@ export default function OrdersScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={Colors.gold} style={{ marginTop: 60 }} />
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.gold} size="large" />
+        </View>
       ) : orders.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="bag-outline" size={64} color={Colors.border} />
@@ -131,13 +135,17 @@ export default function OrdersScreen() {
           }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container:        { flex: 1, backgroundColor: Colors.bg },
-  header:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  header:           { 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
+    paddingHorizontal: 16, paddingBottom: 16, 
+    borderBottomWidth: 1, borderBottomColor: Colors.border 
+  },
   backBtn:          { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title:            { color: Colors.white, fontSize: 17, fontWeight: '700' },
   center:           { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 },

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/theme';
@@ -11,6 +12,7 @@ import { useCart } from '../context/CartContext';
 const { width } = Dimensions.get('window');
 
 export default function FavoritesScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { token } = useAuth();
   const { add } = useCart();
@@ -28,16 +30,19 @@ export default function FavoritesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={Colors.white} />
         </TouchableOpacity>
         <Text style={styles.title}>Избранное</Text>
         <View style={{ width: 40 }} />
       </View>
-      {loading ? <ActivityIndicator color={Colors.gold} style={{ marginTop: 60 }} /> :
-       items.length === 0 ? (
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.gold} size="large" />
+        </View>
+      ) : items.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="heart-outline" size={64} color={Colors.border} />
           <Text style={styles.emptyTitle}>Избранное пусто</Text>
@@ -50,24 +55,29 @@ export default function FavoritesScreen() {
           data={items}
           numColumns={2}
           keyExtractor={i => String(i._id || i.id)}
-          contentContainerStyle={{ padding: 12 }}
-          columnWrapperStyle={{ gap: 0 }}
+          contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
+          columnWrapperStyle={{ gap: 8 }}
           renderItem={({ item }) => (
-            <View style={{ width: (width - 32) / 2 }}>
+            <View style={{ width: (width - 32 - 8) / 2 }}>
               <ProductCard item={item} onCart={() => add(item)} isFavorited={true} hideFav />
             </View>
           )}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  header: { 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
+    paddingHorizontal: 16, paddingBottom: 16, 
+    borderBottomWidth: 1, borderBottomColor: Colors.border 
+  },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { color: Colors.white, fontSize: 17, fontWeight: '700' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyTitle: { color: Colors.white, fontSize: 18, fontWeight: '700' },
   btn: { backgroundColor: Colors.gold, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 },

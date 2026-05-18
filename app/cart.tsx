@@ -13,7 +13,7 @@ import { MEDIA_BASE } from '../constants/api';
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { items, remove, total, clear } = useCart();
+  const { items, remove, total, clear, increment, decrement } = useCart();
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)/catalog'); };
 
   return (
@@ -58,10 +58,24 @@ export default function CartScreen() {
                   {item.options?.tea_name && (
                     <Text style={styles.itemOption}>Чай: {item.options.tea_name}</Text>
                   )}
-                  <Text style={styles.itemPrice}>{item.price} ₽</Text>
+                  {item.options?.weight && (
+                    <Text style={styles.itemWeight}>{item.options.weight}г</Text>
+                  )}
+                  <Text style={styles.itemPrice}>{item.price * item.qty} ₽</Text>
                 </View>
-                <TouchableOpacity onPress={() => remove(item.cart_id || item._id, JSON.stringify(item.options))}>
-                  <Ionicons name="trash-outline" size={20} color={Colors.gray} />
+                
+                <View style={styles.qtyRow}>
+                  <TouchableOpacity style={styles.qtyBtn} onPress={() => decrement(item._id, JSON.stringify(item.options))}>
+                    <Ionicons name="remove" size={18} color={Colors.white} />
+                  </TouchableOpacity>
+                  <Text style={styles.qtyText}>{item.qty}</Text>
+                  <TouchableOpacity style={styles.qtyBtn} onPress={() => increment(item._id, JSON.stringify(item.options))}>
+                    <Ionicons name="add" size={18} color={Colors.white} />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={{ marginLeft: 8 }} onPress={() => remove(item._id, JSON.stringify(item.options))}>
+                  <Ionicons name="trash-outline" size={20} color={Colors.red} />
                 </TouchableOpacity>
               </View>
             )}
@@ -100,7 +114,11 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1 },
   itemName: { color: Colors.white, fontSize: 15, fontWeight: '600', marginBottom: 2 },
   itemOption: { color: Colors.gold, fontSize: 12, marginBottom: 4 },
-  itemPrice: { color: Colors.grayLight, fontSize: 14, fontWeight: '700' },
+  itemWeight: { color: Colors.gray, fontSize: 11, marginBottom: 2 },
+  itemPrice: { color: Colors.white, fontSize: 14, fontWeight: '700' },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.border, borderRadius: 10, padding: 4 },
+  qtyBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  qtyText: { color: Colors.white, fontSize: 14, fontWeight: '700', minWidth: 20, textAlign: 'center' },
   footer: { backgroundColor: Colors.card, padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   totalLabel: { color: Colors.gray, fontSize: 16 },

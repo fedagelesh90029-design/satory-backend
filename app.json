@@ -1,8 +1,7 @@
 {
   "expo": {
-    "name": "Satori",
-    "slug": "satory-tea",
-    "owner": "fedoro",
+    "name": "Satori Tea",
+    "slug": "satori-tea-v2",
     "version": "1.3.6",
     "orientation": "portrait",
     "scheme": "satory",
@@ -69,7 +68,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6ec0d7cc-9893-4c37-8c33-e9363b02e5ea"
+        "projectId": "b71af60e-4389-41ac-8e59-a379cbb78c1d"
       }
     }
   }
