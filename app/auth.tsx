@@ -13,6 +13,7 @@ import { SatoryLogoFull } from '../components/SatoryLogo';
 import { showWelcomeNotification } from '../utils/notifications';
 
 type AuthMode = 'phone' | 'otp' | 'name';
+type OtpChannel = 'sms' | 'telegram' | 'review';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function AuthScreen() {
   const [countdown, setCountdown] = useState(0);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [tgLoading, setTgLoading] = useState(false);
-  const [sentVia, setSentVia] = useState<'sms' | 'telegram'>('sms');
+  const [sentVia, setSentVia] = useState<OtpChannel>('sms');
 
   const otpRefs = useRef<(TextInput | null)[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -80,7 +81,7 @@ export default function AuthScreen() {
     try {
       const resp = await apiFetch('/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone }) });
       setDevCode(resp.dev_code || null);
-      setSentVia('sms');
+      setSentVia(resp.method === 'review' ? 'review' : 'sms');
       setMode('otp');
       startCountdown();
     } catch (e: any) {
@@ -101,7 +102,7 @@ export default function AuthScreen() {
         Alert.alert('Откройте Telegram', 'Нажмите «Старт» в боте Satori Tea — он пришлёт вам код.', [{ text: 'OK' }]);
       }
       setDevCode(resp.dev_code || null);
-      setSentVia('telegram');
+      setSentVia(resp.method === 'review' ? 'review' : 'telegram');
       setMode('otp');
       startCountdown();
     } catch (e: any) {
@@ -163,6 +164,14 @@ export default function AuthScreen() {
     }
   };
 
+  const resendOtp = () => {
+    if (sentVia === 'telegram') {
+      sendOtpViaTelegram();
+      return;
+    }
+    sendOtp();
+  };
+
   // ── Render ──────────────────────────────────────────────────
   if (mode === 'phone') return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -185,6 +194,9 @@ export default function AuthScreen() {
             maxLength={18}
           />
         </View>
+        <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={sendOtp} disabled={loading}>
+          <Text style={styles.btnText}>{loading ? 'Отправка...' : 'Получить код по SMS'}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={[styles.tgBtn, tgLoading && styles.btnDisabled]} onPress={sendOtpViaTelegram} disabled={tgLoading}>
           <Ionicons name="paper-plane-outline" size={18} color="#fff" />
           <Text style={styles.tgBtnText}>{tgLoading ? 'Открываем...' : 'Получить код в Telegram'}</Text>
@@ -204,7 +216,11 @@ export default function AuthScreen() {
         <View style={styles.logoBox}><SatoryLogoFull size={36} /></View>
         <Text style={styles.heading}>Введите код</Text>
         <Text style={styles.sub}>
-          {sentVia === 'telegram' ? `Отправили код в Telegram на номер ${phone}` : `Отправили SMS на ${phone}`}
+          {sentVia === 'telegram'
+            ? `Отправили код в Telegram на номер ${phone}`
+            : sentVia === 'review'
+              ? `Введите код для тестового номера ${phone}`
+              : `Отправили SMS на ${phone}`}
         </Text>
         <View style={styles.otpRow}>
           {otp.map((digit, i) => (
@@ -224,7 +240,7 @@ export default function AuthScreen() {
         <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={verifyOtp} disabled={loading}>
           <Text style={styles.btnText}>{loading ? 'Проверка...' : 'Подтвердить'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.altBtn, countdown > 0 && styles.altBtnDisabled]} onPress={countdown === 0 ? sendOtp : undefined} disabled={countdown > 0}>
+        <TouchableOpacity style={[styles.altBtn, countdown > 0 && styles.altBtnDisabled]} onPress={countdown === 0 ? resendOtp : undefined} disabled={countdown > 0}>
           <Text style={[styles.altText, countdown > 0 && { color: Colors.gray }]}>
             {countdown > 0 ? `Повторить через ${countdown} сек` : 'Отправить код повторно'}
           </Text>

@@ -9,3 +9,4 @@ web-build/
 *.mobileprovision
 *.orig.*
 firebase-service-account.json
+.DS_Store

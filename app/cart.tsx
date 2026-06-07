@@ -1,20 +1,70 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Platform, Image,
+  Platform, Image, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCart } from '../context/CartContext';
 import { Colors } from '../constants/theme';
-import { MEDIA_BASE } from '../constants/api';
+import { MEDIA_BASE, apiFetch } from '../constants/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { items, remove, total, clear, increment, decrement } = useCart();
+  const { token, user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)/catalog'); };
+
+  const checkout = async () => {
+    if (!token) {
+      router.push('/auth');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await apiFetch('/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            product_id: item._id,
+            name: item.name,
+            price: item.price,
+            qty: item.qty,
+            options: item.options,
+          })),
+          total,
+        }),
+      }, token);
+      clear();
+      setDone(true);
+    } catch (e: any) {
+      Alert.alert('Ошибка', e.message || 'Не удалось оформить заказ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <View style={[styles.container, styles.successWrap]}>
+        <Text style={styles.successEmoji}>🍵</Text>
+        <Text style={styles.successTitle}>Заказ оформлен</Text>
+        <Text style={styles.successSub}>Он уже появился в системе. Оплата при получении.</Text>
+        <TouchableOpacity style={styles.orderBtn} onPress={() => router.replace('/orders')}>
+          <Text style={styles.orderBtnText}>Открыть мои заказы</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.replace('/(tabs)/catalog')}>
+          <Text style={styles.secondaryBtnText}>Вернуться в каталог</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -82,12 +132,15 @@ export default function CartScreen() {
           />
 
           <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            {!!user?.bonus_balance && (
+              <Text style={styles.bonusHint}>У вас {user.bonus_balance} бонусов их можно использовать при получении</Text>
+            )}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Итого:</Text>
               <Text style={styles.totalValue}>{total} ₽</Text>
             </View>
-            <TouchableOpacity style={styles.orderBtn} onPress={() => alert('Заказ через приложение скоро будет доступен!')}>
-              <Text style={styles.orderBtnText}>Оформить заказ</Text>
+            <TouchableOpacity style={[styles.orderBtn, loading && styles.orderBtnDisabled]} onPress={checkout} disabled={loading}>
+              <Text style={styles.orderBtnText}>{loading ? 'Оформление...' : 'Оформить заказ'}</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -120,9 +173,17 @@ const styles = StyleSheet.create({
   qtyBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   qtyText: { color: Colors.white, fontSize: 14, fontWeight: '700', minWidth: 20, textAlign: 'center' },
   footer: { backgroundColor: Colors.card, padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  bonusHint: { color: Colors.gold, fontSize: 12, marginBottom: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   totalLabel: { color: Colors.gray, fontSize: 16 },
   totalValue: { color: Colors.white, fontSize: 24, fontWeight: '800' },
   orderBtn: { backgroundColor: Colors.gold, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  orderBtnDisabled: { opacity: 0.7 },
   orderBtnText: { color: Colors.bg, fontSize: 16, fontWeight: '800' },
+  successWrap: { alignItems: 'center', justifyContent: 'center', padding: 32 },
+  successEmoji: { fontSize: 64, marginBottom: 12 },
+  successTitle: { color: Colors.white, fontSize: 24, fontWeight: '700', marginBottom: 8 },
+  successSub: { color: Colors.gray, fontSize: 14, textAlign: 'center', marginBottom: 20 },
+  secondaryBtn: { paddingVertical: 12 },
+  secondaryBtnText: { color: Colors.gray, fontSize: 14 },
 });

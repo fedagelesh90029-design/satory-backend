@@ -8,6 +8,42 @@ const { sendSms } = require('./auth_helpers');
 
 const SECRET = process.env.JWT_SECRET || 'satory_secret_2026';
 const OTP_TTL = 5 * 60 * 1000; // 5 минут
+const REVIEW_TEST_PHONE = process.env.REVIEW_TEST_PHONE
+  ? normalizePhone(String(process.env.REVIEW_TEST_PHONE))
+  : '';
+const REVIEW_TEST_CODE = process.env.REVIEW_TEST_CODE || '';
+const REVIEW_TEST_NAME = process.env.REVIEW_TEST_NAME || 'App Review';
+
+function isReviewPhone(phone) {
+  return Boolean(REVIEW_TEST_PHONE && REVIEW_TEST_CODE && phone === REVIEW_TEST_PHONE);
+}
+
+async function ensureReviewUser(phone) {
+  let user = await db.users.findOne({ phone });
+  if (!user) {
+    user = await db.users.insert({
+      name: REVIEW_TEST_NAME,
+      phone,
+      email: null,
+      password: null,
+      bonus_points: 0,
+      bonus_balance: 0,
+      visits: 0,
+      loyalty_status: 'Бронза',
+      name_set: true,
+      created_at: new Date().toISOString(),
+      is_review_user: true,
+    });
+  } else if (user.name !== REVIEW_TEST_NAME || !user.name_set || !user.is_review_user) {
+    await db.users.update(
+      { _id: user._id },
+      { $set: { name: REVIEW_TEST_NAME, name_set: true, is_review_user: true } }
+    );
+    user = await db.users.findOne({ _id: user._id });
+  }
+
+  return user;
+}
 
 // ─── POST /api/auth/send-otp ──────────────────────────────────────────────────
 router.post('/send-otp', async (req, res) => {
@@ -16,6 +52,16 @@ router.post('/send-otp', async (req, res) => {
 
   const normalized = normalizePhone(String(phone));
   if (!normalized) return res.status(400).json({ error: 'Неверный формат номера телефона' });
+
+  if (isReviewPhone(normalized)) {
+    return res.json({
+      success: true,
+      phone: normalized,
+      method: 'review',
+      is_review_user: true,
+      dev_code: REVIEW_TEST_CODE,
+    });
+  }
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const expires_at = Date.now() + OTP_TTL;
@@ -39,6 +85,16 @@ router.post('/send-otp-telegram', async (req, res) => {
 
   const normalized = normalizePhone(String(phone));
   if (!normalized) return res.status(400).json({ error: 'Неверный формат номера телефона' });
+
+  if (isReviewPhone(normalized)) {
+    return res.json({
+      success: true,
+      phone: normalized,
+      method: 'review',
+      is_review_user: true,
+      dev_code: REVIEW_TEST_CODE,
+    });
+  }
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const hash = crypto.randomBytes(16).toString('hex');
@@ -73,6 +129,17 @@ router.post('/verify-otp', async (req, res) => {
 
   const normalized = normalizePhone(String(phone));
   if (!normalized) return res.status(400).json({ error: 'Неверный формат номера' });
+
+  if (isReviewPhone(normalized)) {
+    if (String(code) !== String(REVIEW_TEST_CODE)) {
+      return res.status(400).json({ error: 'Неверный код' });
+    }
+
+    const user = await ensureReviewUser(normalized);
+    const token = jwt.sign({ id: user._id, phone: normalized }, SECRET, { expiresIn: '30d' });
+    const { password: _, ...safeUser } = user;
+    return res.json({ token, user: safeUser, is_new: false, is_review_user: true });
+  }
 
   const otpRecord = await db.otp_codes.findOne({ phone: normalized });
   if (!otpRecord) return res.status(400).json({ error: 'Сначала запросите код' });
