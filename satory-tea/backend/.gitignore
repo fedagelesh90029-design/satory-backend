@@ -3,3 +3,6 @@ uploads/iiko/*.xlsx
 uploads/iiko/*.xls
 uploads/iiko/*.csv
 .env
+
+# Do not ignore compiled vector icon font files in public assets
+!public/assets/node_modules/
