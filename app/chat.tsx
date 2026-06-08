@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  FlatList, KeyboardAvoidingView, Platform,
+  FlatList, KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,71 @@ interface Message {
   from: 'bot' | 'user';
   time: string;
 }
+
+function TypingIndicator() {
+  const dot1 = useRef(new Animated.Value(0.3)).current;
+  const dot2 = useRef(new Animated.Value(0.3)).current;
+  const dot3 = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const animateDot = (value: Animated.Value, delay: number) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(value, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(value, {
+            toValue: 0.3,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.delay(400),
+        ])
+      );
+    };
+
+    const anim1 = animateDot(dot1, 0);
+    const anim2 = animateDot(dot2, 200);
+    const anim3 = animateDot(dot3, 400);
+
+    anim1.start();
+    anim2.start();
+    anim3.start();
+
+    return () => {
+      anim1.stop();
+      anim2.stop();
+      anim3.stop();
+    };
+  }, []);
+
+  return (
+    <View style={indicatorStyles.typingContainer}>
+      <Animated.View style={[indicatorStyles.typingDot, { opacity: dot1 }]} />
+      <Animated.View style={[indicatorStyles.typingDot, { opacity: dot2 }]} />
+      <Animated.View style={[indicatorStyles.typingDot, { opacity: dot3 }]} />
+    </View>
+  );
+}
+
+const indicatorStyles = StyleSheet.create({
+  typingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: Colors.gold,
+  },
+});
 
 const QUICK = [
   'Какой чай выбрать новичку?',
@@ -50,6 +115,8 @@ export default function ChatScreen() {
     setMessages(m => [...m, userMsg]);
     setInput('');
     setLoading(true);
+    // Scroll immediately when sending message
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     try {
       const data = await apiFetch('/chat/message', {
         method: 'POST',
@@ -110,6 +177,16 @@ export default function ChatScreen() {
               </View>
             </View>
           )}
+          ListFooterComponent={loading ? (
+            <View style={styles.msgRow}>
+              <View style={styles.botAvatarSmall}>
+                <SatoryLogoIcon size={20} />
+              </View>
+              <View style={[styles.bubble, styles.bubbleBot]}>
+                <TypingIndicator />
+              </View>
+            </View>
+          ) : null}
         />
 
         {/* Quick replies */}

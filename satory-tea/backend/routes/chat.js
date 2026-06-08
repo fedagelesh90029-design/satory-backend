@@ -2,18 +2,27 @@ const router = require('express').Router();
 const https = require('https');
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY || '';
 const HTTPS_PROXY = process.env.HTTPS_PROXY || '';
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const SYSTEM_PROMPT = 'Ты — сдержанный и профессиональный чайный мастер Satori. Отвечай ТОЛЬКО на русском языке. Твоя экспертиза строго ограничена чайным домом Satori, ассортиментом чая, церемониями и культурой чаепития. Если вопрос не касается чая или Satori, вежливо откажись отвечать. Пиши грамотно, без ошибок. Используй только стандартные кириллические символы, чтобы избежать ошибок кодировки.';
 
-async function callGroq(messages) {
-  if (!GROQ_API_KEY) {
-    console.log('[Groq Error] GROQ_API_KEY is not configured');
+async function callAI(messages) {
+  const apiKey = GROQ_API_KEY || CEREBRAS_API_KEY;
+  if (!apiKey) {
+    console.log('[AI Error] Neither GROQ_API_KEY nor CEREBRAS_API_KEY is configured');
     return null;
   }
 
+  const isCerebras = !GROQ_API_KEY && CEREBRAS_API_KEY;
+  const hostname = isCerebras ? 'api.cerebras.ai' : 'api.groq.com';
+  const path = isCerebras ? '/v1/chat/completions' : '/openai/v1/chat/completions';
+  const model = isCerebras ? 'zai-glm-4.7' : GROQ_MODEL;
+
+  console.log(`[AI Request] Routing to ${hostname} using model ${model}`);
+
   const body = JSON.stringify({
-    model: GROQ_MODEL,
+    model: model,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       ...messages
@@ -27,18 +36,18 @@ async function callGroq(messages) {
       const { HttpsProxyAgent } = require('https-proxy-agent');
       agent = new HttpsProxyAgent(HTTPS_PROXY);
     } catch (e) {
-      console.log('[Groq] Proxy agent pack missing');
+      console.log('[AI Proxy] Proxy agent pack missing');
     }
   }
 
   const options = {
-    hostname: 'api.groq.com',
-    path: '/openai/v1/chat/completions',
+    hostname: hostname,
+    path: path,
     method: 'POST',
     agent: agent,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_API_KEY}`
+      'Authorization': `Bearer ${apiKey}`
     }
   };
 
@@ -50,7 +59,7 @@ async function callGroq(messages) {
         try {
           const json = JSON.parse(data);
           if (res.statusCode !== 200) {
-            console.log('[Groq Error]', res.statusCode, data);
+            console.log('[AI Error]', res.statusCode, data);
             return resolve(null);
           }
           resolve(json.choices?.[0]?.message?.content || null);
@@ -58,12 +67,12 @@ async function callGroq(messages) {
       });
     });
     req.on('error', (e) => {
-      console.log('[Groq Net Error]', e.message);
+      console.log('[AI Net Error]', e.message);
       resolve(null);
     });
     req.setTimeout(15000, () => {
       req.destroy();
-      console.log('[Groq Timeout]');
+      console.log('[AI Timeout]');
       resolve(null);
     });
     req.write(body);
@@ -82,9 +91,9 @@ router.post('/message', async (req, res) => {
   let history = sessions.get(sid) || [];
   history.push({ role: 'user', content: String(message).trim() });
 
-  console.log(`[Chat] Groq request for ${sid}: ${String(message).slice(0, 50)}`);
+  console.log(`[Chat] AI request for ${sid}: ${String(message).slice(0, 50)}`);
 
-  let reply = await callGroq(history.slice(-10));
+  let reply = await callAI(history.slice(-10));
   
   if (!reply) {
     reply = 'Мастер сейчас на дегустации. Попробуйте через минуту! 🍵';
