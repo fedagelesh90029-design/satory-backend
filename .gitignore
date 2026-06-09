@@ -10,6 +10,8 @@ web-build/
 *.orig.*
 firebase-service-account.json
 .DS_Store
+*.apk
+android/
 
 # Do not ignore compiled vector icon font files in public assets
 !satory-tea/backend/public/assets/node_modules/
