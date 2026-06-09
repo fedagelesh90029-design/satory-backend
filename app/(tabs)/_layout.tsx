@@ -9,11 +9,12 @@ import { useCart } from '../../context/CartContext';
 function ChatFAB() {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   // Не показываем FAB на экране чата
   if (pathname === '/chat') return null;
   return (
     <TouchableOpacity
-      style={styles.fab}
+      style={[styles.fab, { bottom: 60 + Math.max(insets.bottom, 12) + 16 }]}
       onPress={() => router.push('/chat')}
       activeOpacity={0.85}
     >

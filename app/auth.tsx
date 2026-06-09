@@ -165,11 +165,7 @@ export default function AuthScreen() {
   };
 
   const resendOtp = () => {
-    if (sentVia === 'telegram') {
-      sendOtpViaTelegram();
-      return;
-    }
-    sendOtp();
+    sendOtpViaTelegram();
   };
 
   // ── Render ──────────────────────────────────────────────────
@@ -181,7 +177,7 @@ export default function AuthScreen() {
           <Text style={styles.tagline}>Чайная культура</Text>
         </View>
         <Text style={styles.heading}>Вход по номеру телефона</Text>
-        <Text style={styles.sub}>Отправим код подтверждения</Text>
+        <Text style={styles.sub}>Авторизация через Telegram-бота</Text>
         <View style={styles.phoneRow}>
           <View style={styles.flagBox}><Text style={styles.flag}>🇷🇺</Text></View>
           <TextInput
@@ -194,12 +190,9 @@ export default function AuthScreen() {
             maxLength={18}
           />
         </View>
-        <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={sendOtp} disabled={loading}>
-          <Text style={styles.btnText}>{loading ? 'Отправка...' : 'Получить код по SMS'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tgBtn, tgLoading && styles.btnDisabled]} onPress={sendOtpViaTelegram} disabled={tgLoading}>
-          <Ionicons name="paper-plane-outline" size={18} color="#fff" />
-          <Text style={styles.tgBtnText}>{tgLoading ? 'Открываем...' : 'Получить код в Telegram'}</Text>
+        <TouchableOpacity style={[styles.btn, tgLoading && styles.btnDisabled]} onPress={sendOtpViaTelegram} disabled={tgLoading}>
+          <Ionicons name="paper-plane" size={18} color={Colors.bg} />
+          <Text style={styles.btnText}>{tgLoading ? 'Открываем...' : 'Получить код в Telegram'}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Text style={styles.backText}>← Назад</Text></TouchableOpacity>
       </ScrollView>
