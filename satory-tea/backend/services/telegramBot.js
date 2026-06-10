@@ -8,11 +8,23 @@ const https = require('https');
 const db = require('../db');
 
 const BOT_TOKEN = process.env.TG_BOT_TOKEN;
+const HTTPS_PROXY = process.env.HTTPS_PROXY || '';
+
+let proxyAgent = null;
+if (HTTPS_PROXY) {
+  try {
+    const { HttpsProxyAgent } = require('https-proxy-agent');
+    proxyAgent = new HttpsProxyAgent(HTTPS_PROXY);
+    console.log('[telegram] Инициализирован прокси:', HTTPS_PROXY);
+  } catch (e) {
+    console.warn('[telegram] Не удалось загрузить https-proxy-agent:', e.message);
+  }
+}
 
 // ─── HTTP утилита ─────────────────────────────────────────────────────────────
 
 function tgRequest(method, data) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const body = JSON.stringify(data);
     const options = {
       hostname: 'api.telegram.org',
@@ -20,6 +32,9 @@ function tgRequest(method, data) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
     };
+    if (proxyAgent) {
+      options.agent = proxyAgent;
+    }
     const req = https.request(options, (res) => {
       let raw = '';
       res.on('data', d => raw += d);
@@ -28,8 +43,15 @@ function tgRequest(method, data) {
         catch { resolve({ ok: false, description: raw }); }
       });
     });
-    req.on('error', reject);
-    req.setTimeout(35000, () => { req.destroy(); reject(new Error('Telegram timeout')); });
+    req.on('error', (err) => {
+      console.error('[telegram] Request error:', err.message);
+      resolve({ ok: false, description: err.message });
+    });
+    req.setTimeout(35000, () => {
+      req.destroy();
+      console.error('[telegram] Request timeout');
+      resolve({ ok: false, description: 'Telegram timeout' });
+    });
     req.write(body);
     req.end();
   });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, Alert, Linking, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/theme';
@@ -36,38 +36,43 @@ export default function RateScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Оценить приложение</Text>
-        <View style={{ width: 40 }} />
-      </View>
-      <View style={styles.content}>
-        <Text style={styles.question}>Как вам приложение Satori?</Text>
-        <View style={styles.stars}>
-          {[1,2,3,4,5].map(s => (
-            <TouchableOpacity key={s} onPress={() => setStars(s)}>
-              <Ionicons name={s <= stars ? 'star' : 'star-outline'} size={44} color={Colors.gold} />
-            </TouchableOpacity>
-          ))}
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+      style={{ flex: 1, backgroundColor: Colors.bg }}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={24} color={Colors.white} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Оценить приложение</Text>
+          <View style={{ width: 40 }} />
         </View>
-        <Text style={styles.label}>Комментарий (необязательно)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Что понравилось или что улучшить?"
-          placeholderTextColor={Colors.gray}
-          value={comment}
-          onChangeText={setComment}
-          multiline
-          numberOfLines={4}
-        />
-        <TouchableOpacity style={[styles.btn, !stars && { opacity: 0.4 }]} onPress={submit} disabled={!stars}>
-          <Text style={styles.btnText}>Отправить отзыв</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        <View style={styles.content}>
+          <Text style={styles.question}>Как вам приложение Satori?</Text>
+          <View style={styles.stars}>
+            {[1,2,3,4,5].map(s => (
+              <TouchableOpacity key={s} onPress={() => setStars(s)}>
+                <Ionicons name={s <= stars ? 'star' : 'star-outline'} size={44} color={Colors.gold} />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.label}>Комментарий (необязательно)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Что понравилось или что улучшить?"
+            placeholderTextColor={Colors.gray}
+            value={comment}
+            onChangeText={setComment}
+            multiline
+            numberOfLines={4}
+          />
+          <TouchableOpacity style={[styles.btn, !stars && { opacity: 0.4 }]} onPress={submit} disabled={!stars}>
+            <Text style={styles.btnText}>Отправить отзыв</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

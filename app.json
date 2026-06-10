@@ -2,7 +2,7 @@
   "expo": {
     "name": "Satori Tea",
     "slug": "satori-tea-v2",
-    "version": "1.3.8",
+    "version": "1.3.9",
     "orientation": "portrait",
     "scheme": "satory",
     "userInterfaceStyle": "dark",
@@ -24,7 +24,7 @@
     },
     "android": {
       "package": "com.satory.tea",
-      "versionCode": 140,
+      "versionCode": 141,
       "icon": "./assets/Satory.png",
       "googleServicesFile": "./google-services.json",
       "navigationBarColor": "#141414",
