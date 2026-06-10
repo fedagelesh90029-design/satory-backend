@@ -17,9 +17,47 @@ type OtpChannel = 'sms' | 'telegram' | 'review';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { loginWithPhone } = useAuth();
+  const { loginWithPhone, login, register } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>('phone');
+  const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
+  const [emailMode, setEmailMode] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleEmailLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Ошибка', 'Заполните все поля');
+      return;
+    }
+    setLoading(true);
+    try {
+      await login(email.trim().toLowerCase(), password);
+      await showWelcomeNotification(email.trim().toLowerCase(), false);
+      router.replace('/(tabs)/profile');
+    } catch (e: any) {
+      Alert.alert('Ошибка', e.message || 'Неверный email или пароль');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmailRegister = async () => {
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      Alert.alert('Ошибка', 'Заполните все поля');
+      return;
+    }
+    setLoading(true);
+    try {
+      await register(name.trim(), email.trim().toLowerCase(), password);
+      await showWelcomeNotification(name.trim(), true);
+      router.replace('/(tabs)/profile');
+    } catch (e: any) {
+      Alert.alert('Ошибка', e.message || 'Ошибка регистрации');
+    } finally {
+      setLoading(false);
+    }
+  };
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [name, setName] = useState('');
@@ -176,24 +214,101 @@ export default function AuthScreen() {
           <SatoryLogoFull size={44} />
           <Text style={styles.tagline}>Чайная культура</Text>
         </View>
-        <Text style={styles.heading}>Вход по номеру телефона</Text>
-        <Text style={styles.sub}>Авторизация через Telegram-бота</Text>
-        <View style={styles.phoneRow}>
-          <View style={styles.flagBox}><Text style={styles.flag}>🇷🇺</Text></View>
-          <TextInput
-            style={styles.phoneInput}
-            placeholder="+7 (___) ___-__-__"
-            placeholderTextColor={Colors.gray}
-            value={phone}
-            onChangeText={onPhoneChange}
-            keyboardType="phone-pad"
-            maxLength={18}
-          />
+
+        {/* Переключатель методов входа */}
+        <View style={styles.toggleRow}>
+          <TouchableOpacity 
+            style={[styles.toggleBtn, loginMethod === 'phone' && styles.toggleBtnActive]}
+            onPress={() => setLoginMethod('phone')}
+          >
+            <Text style={[styles.toggleText, loginMethod === 'phone' && styles.toggleTextActive]}>Телефон</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.toggleBtn, loginMethod === 'email' && styles.toggleBtnActive]}
+            onPress={() => setLoginMethod('email')}
+          >
+            <Text style={[styles.toggleText, loginMethod === 'email' && styles.toggleTextActive]}>Email</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={[styles.btn, tgLoading && styles.btnDisabled]} onPress={sendOtpViaTelegram} disabled={tgLoading}>
-          <Ionicons name="paper-plane" size={18} color={Colors.bg} />
-          <Text style={styles.btnText}>{tgLoading ? 'Открываем...' : 'Получить код в Telegram'}</Text>
-        </TouchableOpacity>
+
+        {loginMethod === 'phone' ? (
+          <>
+            <Text style={styles.heading}>Вход по номеру телефона</Text>
+            <Text style={styles.sub}>Авторизация через Telegram-бота</Text>
+            <View style={styles.phoneRow}>
+              <View style={styles.flagBox}><Text style={styles.flag}>🇷🇺</Text></View>
+              <TextInput
+                style={styles.phoneInput}
+                placeholder="+7 (___) ___-__-__"
+                placeholderTextColor={Colors.gray}
+                value={phone}
+                onChangeText={onPhoneChange}
+                keyboardType="phone-pad"
+                maxLength={18}
+              />
+            </View>
+            <TouchableOpacity style={[styles.btn, tgLoading && styles.btnDisabled]} onPress={sendOtpViaTelegram} disabled={tgLoading}>
+              <Ionicons name="paper-plane" size={18} color={Colors.bg} />
+              <Text style={styles.btnText}>{tgLoading ? 'Открываем...' : 'Получить код в Telegram'}</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Text style={styles.heading}>{emailMode === 'login' ? 'Вход по Email' : 'Регистрация по Email'}</Text>
+            <Text style={styles.sub}>Введите свои данные для доступа</Text>
+            
+            {emailMode === 'register' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Ваше имя"
+                placeholderTextColor={Colors.gray}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+              />
+            )}
+            
+            <TextInput
+              style={styles.input}
+              placeholder="E-mail"
+              placeholderTextColor={Colors.gray}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Пароль"
+              placeholderTextColor={Colors.gray}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+
+            <TouchableOpacity 
+              style={[styles.btn, loading && styles.btnDisabled]} 
+              onPress={emailMode === 'login' ? handleEmailLogin : handleEmailRegister} 
+              disabled={loading}
+            >
+              <Text style={styles.btnText}>
+                {loading ? 'Загрузка...' : emailMode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={{ marginTop: 20, alignItems: 'center' }} 
+              onPress={() => setEmailMode(emailMode === 'login' ? 'register' : 'login')}
+            >
+              <Text style={{ color: Colors.gold, fontSize: 14 }}>
+                {emailMode === 'login' ? 'Еще нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Text style={styles.backText}>← Назад</Text></TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -285,4 +400,30 @@ const styles = StyleSheet.create({
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 28 },
   otpCell: { width: 46, height: 56, borderRadius: 12, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, textAlign: 'center', fontSize: 22, fontWeight: '700', color: Colors.white },
   otpCellFilled: { borderColor: Colors.gold },
+  toggleRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  toggleBtnActive: {
+    backgroundColor: Colors.gold,
+  },
+  toggleText: {
+    color: Colors.gray,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  toggleTextActive: {
+    color: Colors.bg,
+  },
 });

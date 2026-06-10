@@ -13,6 +13,8 @@ const REVIEW_TEST_PHONE = process.env.REVIEW_TEST_PHONE
   : '';
 const REVIEW_TEST_CODE = process.env.REVIEW_TEST_CODE || '';
 const REVIEW_TEST_NAME = process.env.REVIEW_TEST_NAME || 'App Review';
+const REVIEW_TEST_EMAIL = (process.env.REVIEW_TEST_EMAIL || 'test@satory.ru').toLowerCase();
+const REVIEW_TEST_PASSWORD = process.env.REVIEW_TEST_PASSWORD || '123456';
 
 function isReviewPhone(phone) {
   return Boolean(REVIEW_TEST_PHONE && REVIEW_TEST_CODE && phone === REVIEW_TEST_PHONE);
@@ -204,7 +206,31 @@ router.post('/register', async (req, res) => {
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  const user = await db.users.findOne({ email });
+  if (!email || !password) return res.status(400).json({ error: 'Заполните все поля' });
+
+  const normEmail = String(email).trim().toLowerCase();
+
+  // Автоматический вход для тестового аккаунта модератора
+  if (normEmail === REVIEW_TEST_EMAIL && String(password) === REVIEW_TEST_PASSWORD) {
+    let user = await db.users.findOne({ email: REVIEW_TEST_EMAIL });
+    if (!user) {
+      user = await db.users.insert({
+        name: 'Test Reviewer',
+        email: REVIEW_TEST_EMAIL,
+        password: bcrypt.hashSync(REVIEW_TEST_PASSWORD, 10),
+        bonus_points: 0,
+        bonus_balance: 0,
+        visits: 0,
+        loyalty_status: 'Бронза',
+        created_at: new Date().toISOString(),
+      });
+    }
+    const token = jwt.sign({ id: user._id, email: user.email }, SECRET, { expiresIn: '30d' });
+    const { password: _, ...safeUser } = user;
+    return res.json({ token, user: safeUser });
+  }
+
+  const user = await db.users.findOne({ email: normEmail });
   if (!user || !bcrypt.compareSync(password, user.password))
     return res.status(401).json({ error: 'Неверный email или пароль' });
 
