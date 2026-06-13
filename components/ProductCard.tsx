@@ -117,7 +117,10 @@ export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFa
             <Text style={styles.modalSub}>{item.name}</Text>
             <View style={styles.inputRow}>
               <TouchableOpacity onPress={() => setWeight(Math.max(25, (parseInt(weight)||0)-5).toString())} style={styles.stepBtn}>
-                <Ionicons name="remove" size={20} color={Colors.gold} />
+                <Text style={styles.stepBtnText}>-5</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setWeight(Math.max(25, (parseInt(weight)||0)-1).toString())} style={styles.stepBtn}>
+                <Text style={styles.stepBtnText}>-1</Text>
               </TouchableOpacity>
               <TextInput
                 style={styles.input}
@@ -126,8 +129,11 @@ export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFa
                 keyboardType="number-pad"
                 autoFocus
               />
+              <TouchableOpacity onPress={() => setWeight(Math.min(item.stock ?? 9999, (parseInt(weight)||0)+1).toString())} style={styles.stepBtn}>
+                <Text style={styles.stepBtnText}>+1</Text>
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => setWeight(Math.min(item.stock ?? 9999, (parseInt(weight)||0)+5).toString())} style={styles.stepBtn}>
-                <Ionicons name="add" size={20} color={Colors.gold} />
+                <Text style={styles.stepBtnText}>+5</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.modalBtns}>
@@ -169,8 +175,9 @@ const styles = StyleSheet.create({
   modalContent: { backgroundColor: Colors.card, borderRadius: 24, padding: 24, width: '100%', maxWidth: 300, borderColor: Colors.border, borderWidth: 1 },
   modalTitle: { color: Colors.white, fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   modalSub: { color: Colors.gray, fontSize: 13, textAlign: 'center', marginBottom: 20 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 24 },
-  stepBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 24 },
+  stepBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  stepBtnText: { color: Colors.gold, fontSize: 13, fontWeight: '700' },
   input: { color: Colors.gold, fontSize: 32, fontWeight: '800', textAlign: 'center', width: 80 },
   modalBtns: { flexDirection: 'row', gap: 12 },
   cancelBtn: { flex: 1, paddingVertical: 14, alignItems: 'center' },
