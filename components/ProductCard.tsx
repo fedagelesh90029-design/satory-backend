@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
 import { apiFetch, MEDIA_BASE } from '../constants/api';
@@ -61,7 +61,18 @@ export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFa
   };
 
   const confirmWeight = () => {
-    const val = parseInt(weight) || 25;
+    let val = parseInt(weight) || 25;
+    if (val < 25) {
+      Alert.alert('Внимание', 'Минимальный вес для заказа — 25 г');
+      setWeight('25');
+      return;
+    }
+    const maxStock = item.stock ?? 9999;
+    if (val > maxStock) {
+      Alert.alert('Внимание', `Недостаточно чая в наличии. Доступно только ${maxStock} г.`);
+      setWeight(String(maxStock));
+      return;
+    }
     if (onCart) onCart(val); else {
       // В контексте корзины qty — это множитель. 
       // Если товар по граммам, нам нужно либо добавить val штук, 
@@ -105,7 +116,7 @@ export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFa
             <Text style={styles.modalTitle}>Сколько грамм?</Text>
             <Text style={styles.modalSub}>{item.name}</Text>
             <View style={styles.inputRow}>
-              <TouchableOpacity onPress={() => setWeight(Math.max(1, (parseInt(weight)||0)-5).toString())} style={styles.stepBtn}>
+              <TouchableOpacity onPress={() => setWeight(Math.max(25, (parseInt(weight)||0)-5).toString())} style={styles.stepBtn}>
                 <Ionicons name="remove" size={20} color={Colors.gold} />
               </TouchableOpacity>
               <TextInput
@@ -115,7 +126,7 @@ export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFa
                 keyboardType="number-pad"
                 autoFocus
               />
-              <TouchableOpacity onPress={() => setWeight(((parseInt(weight)||0)+5).toString())} style={styles.stepBtn}>
+              <TouchableOpacity onPress={() => setWeight(Math.min(item.stock ?? 9999, (parseInt(weight)||0)+5).toString())} style={styles.stepBtn}>
                 <Ionicons name="add" size={20} color={Colors.gold} />
               </TouchableOpacity>
             </View>

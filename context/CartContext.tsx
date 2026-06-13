@@ -8,6 +8,8 @@ interface CartItem {
   image_url?: string;
   weight?: string;
   qty: number;
+  unit?: string;
+  stock?: number;
   options?: {
     tea_id?: string;
     tea_name?: string;
@@ -39,7 +41,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const existing = prev.find(i => i._id === id && JSON.stringify(i.options) === optKey);
       
       if (existing) {
-        return prev.map(i => (i._id === id && JSON.stringify(i.options) === optKey) ? { ...i, qty: i.qty + 1 } : i);
+        const maxStock = existing.stock ?? 9999;
+        return prev.map(i => (i._id === id && JSON.stringify(i.options) === optKey) ? { ...i, qty: Math.min(maxStock, i.qty + 1) } : i);
       }
       
       let price = Number(product.price);
@@ -57,6 +60,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         image_url: product.image_url,
         weight: product.weight,
         qty: 1,
+        unit: product.unit,
+        stock: product.stock,
         options 
       }];
     });
@@ -66,10 +71,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(prev => prev.filter(i => !(i._id === id && JSON.stringify(i.options) === optionsJson)));
 
   const increment = (id: string, optionsJson?: string) =>
-    setItems(prev => prev.map(i => (i._id === id && JSON.stringify(i.options) === optionsJson) ? { ...i, qty: i.qty + 1 } : i));
+    setItems(prev => prev.map(i => (i._id === id && JSON.stringify(i.options) === optionsJson) ? { ...i, qty: Math.min(i.stock ?? 9999, i.qty + 1) } : i));
 
   const decrement = (id: string, optionsJson?: string) =>
-    setItems(prev => prev.map(i => (i._id === id && JSON.stringify(i.options) === optionsJson) ? { ...i, qty: Math.max(1, i.qty - 1) } : i));
+    setItems(prev => prev.map(i => {
+      if (i._id === id && JSON.stringify(i.options) === optionsJson) {
+        const isByWeight = i.unit === 'г' || i.unit === 'гр';
+        const minQty = isByWeight ? 25 : 1;
+        return { ...i, qty: Math.max(minQty, i.qty - 1) };
+      }
+      return i;
+    }));
 
   const clear = () => setItems([]);
 

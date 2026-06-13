@@ -52,7 +52,14 @@ export default function CatalogScreen() {
     if (search) params.set('search', search);
     try {
       const data = await apiFetch(`/products?${params}`);
-      setProducts(data);
+      const filtered = data.filter((item: any) => {
+        const isByWeight = item.unit === 'г' || item.unit === 'гр';
+        if (isByWeight) {
+          return (item.stock ?? 0) >= 25;
+        }
+        return true;
+      });
+      setProducts(filtered);
     } catch {}
   }, [category, search]);
 

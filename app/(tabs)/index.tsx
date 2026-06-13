@@ -26,7 +26,16 @@ export default function HomeScreen() {
   const [events, setEvents] = useState<any[]>([]);
 
   useEffect(() => {
-    apiFetch('/products').then(setProducts).catch(() => {});
+    apiFetch('/products').then(data => {
+      const filtered = data.filter((item: any) => {
+        const isByWeight = item.unit === 'г' || item.unit === 'гр';
+        if (isByWeight) {
+          return (item.stock ?? 0) >= 25;
+        }
+        return true;
+      });
+      setProducts(filtered);
+    }).catch(() => {});
     apiFetch('/events').then(setEvents).catch(() => {});
   }, []);
 
@@ -101,7 +110,7 @@ export default function HomeScreen() {
             <View style={styles.bannerBadge}>
               <Text style={styles.bannerBadgeText}>САТОРИ</Text>
             </View>
-            <Text style={styles.bannerTitle}>Место, где чай{'\n'}становится ритуалом</Text>
+            <Text style={styles.bannerTitle}>Меньше слов,{'\n'}больше чая...</Text>
             <TouchableOpacity style={styles.bannerBtn} onPress={() => router.push('/(tabs)/catalog')}>
               <Text style={styles.bannerBtnText}>Смотреть  ›</Text>
             </TouchableOpacity>

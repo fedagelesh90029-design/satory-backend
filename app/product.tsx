@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  Dimensions, ActivityIndicator, FlatList, Modal,
+  Dimensions, ActivityIndicator, FlatList, Modal, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -91,7 +91,7 @@ export default function ProductScreen() {
         setTeas(t);
 
         if (p.weight && String(p.weight).toLowerCase().includes('г')) {
-          setAmount(10); // Default for weighted tea
+          setAmount(25); // Default for weighted tea
         }
 
         // Check if favorited if token exists
@@ -140,11 +140,26 @@ export default function ProductScreen() {
       tea_price: selectedTea.price,
     } : undefined;
 
-    // If it's weighted tea, we add 'amount' grams. 
-    // In our current CartContext, 'qty' is units. 
-    // We might need to adjust logic if qty 1 = amount grams.
-    // For now, let's keep it simple: price is per unit.
-    add(product, options);
+    const isByWeight = product.unit === 'г' || product.unit === 'гр';
+    if (isByWeight) {
+      const grams = amount || 25;
+      if (grams < 25) {
+        Alert.alert('Внимание', 'Минимальный вес для заказа — 25 г');
+        setAmount(25);
+        return;
+      }
+      const maxStock = product.stock ?? 9999;
+      if (grams > maxStock) {
+        Alert.alert('Внимание', `Недостаточно чая в наличии. Доступно только ${maxStock} г.`);
+        setAmount(maxStock);
+        return;
+      }
+      for (let i = 0; i < grams; i++) {
+        add(product, options);
+      }
+    } else {
+      add(product, options);
+    }
     goBack();
   };
 
@@ -266,21 +281,33 @@ export default function ProductScreen() {
           ) : null}
 
           {/* Выбор количества для чая */}
-          {isWeighted && (
-            <View style={styles.amountBox}>
-              <Text style={styles.amountTitle}>Количество (грамм)</Text>
-              <View style={styles.amountRow}>
-                {[10, 25, 50, 100].map(v => (
-                  <TouchableOpacity key={v} 
-                    style={[styles.amountChip, amount === v && styles.amountChipActive]}
-                    onPress={() => setAmount(v)}
-                  >
-                    <Text style={[styles.amountText, amount === v && styles.amountTextActive]}>{v}г</Text>
-                  </TouchableOpacity>
-                ))}
+          {isWeighted && (() => {
+            const maxStock = product.stock ?? 9999;
+            const chips = [25, 50, 100, 250].filter(v => v <= maxStock);
+            if (maxStock >= 25 && !chips.includes(maxStock) && maxStock < 500) {
+              chips.push(maxStock);
+              chips.sort((a, b) => a - b);
+            }
+            return (
+              <View style={styles.amountBox}>
+                <Text style={styles.amountTitle}>Количество (грамм)</Text>
+                <View style={styles.amountRow}>
+                  {chips.map(v => (
+                    <TouchableOpacity key={v} 
+                      style={[styles.amountChip, amount === v && styles.amountChipActive]}
+                      onPress={() => setAmount(v)}
+                    >
+                      <Text style={[styles.amountText, amount === v && styles.amountTextActive]}>
+                        {v === maxStock && maxStock !== 25 && maxStock !== 50 && maxStock !== 100 && maxStock !== 250
+                          ? `${v}г (остаток)`
+                          : `${v}г`}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
-          )}
+            );
+          })()}
 
           {/* Советы по завариванию */}
           {display.show_brewing_tips !== false && meta.brewing_tips ? (
