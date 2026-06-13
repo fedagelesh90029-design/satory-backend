@@ -150,10 +150,8 @@ export default function HomeScreen() {
                     const isTeaToGo = item.name?.toLowerCase().includes('с собой');
                     if (isTeaToGo) {
                       router.push({ pathname: '/product', params: { id: item._id || item.id } });
-                    } else if (qty) {
-                      for(let i=0; i<qty; i++) add(item);
                     } else {
-                      add(item);
+                      add(item, undefined, qty);
                     }
                   }}
                 />

@@ -157,11 +157,7 @@ export default function CatalogScreen() {
                 if (isTeaToGo) {
                   router.push({ pathname: '/product', params: { id: item._id || item.id } });
                 } else {
-                  if (qty && qty > 1) {
-                    for(let i = 0; i < qty; i++) add(item);
-                  } else {
-                    add(item);
-                  }
+                  add(item, undefined, qty);
                 }
               }}
             />

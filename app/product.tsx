@@ -90,7 +90,8 @@ export default function ProductScreen() {
         setDisplay(s);
         setTeas(t);
 
-        if (p.weight && String(p.weight).toLowerCase().includes('г')) {
+        const isW = (p.unit === 'г' || p.unit === 'гр') || (p.weight && String(p.weight).toLowerCase().includes('г'));
+        if (isW) {
           setAmount(25); // Default for weighted tea
         }
 
@@ -154,9 +155,7 @@ export default function ProductScreen() {
         setAmount(maxStock);
         return;
       }
-      for (let i = 0; i < grams; i++) {
-        add(product, options);
-      }
+      add(product, options, grams);
     } else {
       add(product, options);
     }
@@ -173,7 +172,7 @@ export default function ProductScreen() {
     ? product.price + (selectedTea.price * 6)
     : product.price;
 
-  const isWeighted = product.weight && String(product.weight).toLowerCase().includes('г');
+  const isWeighted = (product.unit === 'г' || product.unit === 'гр') || (product.weight && String(product.weight).toLowerCase().includes('г'));
   const isByWeight = product.unit === 'г' || product.unit === 'гр';
 
   const meta = product.meta || {};

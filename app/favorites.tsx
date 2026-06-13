@@ -59,7 +59,7 @@ export default function FavoritesScreen() {
           columnWrapperStyle={{ gap: 8 }}
           renderItem={({ item }) => (
             <View style={{ width: (width - 32 - 8) / 2 }}>
-              <ProductCard item={item} onCart={() => add(item)} isFavorited={true} hideFav />
+              <ProductCard item={item} onCart={(qty) => add(item, undefined, qty)} isFavorited={true} hideFav />
             </View>
           )}
         />
