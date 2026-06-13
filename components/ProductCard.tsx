@@ -100,7 +100,7 @@ export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFa
           <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
           <Text style={styles.sub} numberOfLines={1}>{item.category}{item.year ? ` · ${item.year}` : ''}</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.price}>{Number(item.price).toLocaleString('ru')} ₽{isByWeight ? '/г' : '/Шт'}</Text>
+            <Text style={styles.price}>{Number(item.price).toLocaleString('ru')} ₽{isByWeight ? '/г' : `/${item.unit || 'шт'}`}</Text>
             <TouchableOpacity style={styles.cartBtn} onPress={handleCartPress}>
               <Ionicons name="cart-outline" size={16} color={Colors.bg} />
             </TouchableOpacity>

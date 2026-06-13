@@ -262,7 +262,7 @@ export default function ProductScreen() {
           {(product.year || product.weight || display.show_price !== false) ? (
           <View style={styles.specsCard}>
             {display.show_price !== false && (
-              <SpecRow icon="pricetag-outline" label="Цена" value={`${Number(product.price).toLocaleString('ru')} ₽${isByWeight ? '/г' : '/Шт'}`} />
+              <SpecRow icon="pricetag-outline" label="Цена" value={`${Number(product.price).toLocaleString('ru')} ₽${isByWeight ? '/г' : `/${product.unit || 'шт'}`}`} />
             )}
             {display.show_price !== false && product.weight && (() => {
               // Считаем цену за грамм если вес указан в граммах
