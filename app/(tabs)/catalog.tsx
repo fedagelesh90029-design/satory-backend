@@ -80,7 +80,7 @@ export default function CatalogScreen() {
             <Ionicons name="cart-outline" size={20} color={Colors.gold} />
             {cartCount > 0 && (
               <View style={styles.cartBadge}>
-                <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
+                <Text style={styles.cartBadgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -125,8 +125,6 @@ export default function CatalogScreen() {
           );
         })}
       </ScrollView>
-
-      <Text style={styles.count}>{products.length} товаров</Text>
 
       <FlatList
         data={products}

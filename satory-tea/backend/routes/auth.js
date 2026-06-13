@@ -76,7 +76,7 @@ router.post('/send-otp', async (req, res) => {
     await db.otp_codes.insert({ phone: normalized, code, expires_at, attempts: 0 });
   }
 
-  await sendSms(normalized, `Ваш код Satori: ${code}`);
+  await sendSms(normalized, `Ваш код САТОРИ: ${code}`);
   res.json({ success: true, phone: normalized, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
 });
 
@@ -114,7 +114,7 @@ router.post('/send-otp-telegram', async (req, res) => {
   const botUsername = await getBotUsername();
   
   // Пробуем отправить напрямую если уже привязан
-  const sent = await sendOtpViaTelegram(normalized, `Ваш код подтверждения Satori Tea: ${code}`);
+  const sent = await sendOtpViaTelegram(normalized, `Ваш код подтверждения САТОРИ: ${code}`);
   if (sent) {
     return res.json({ success: true, method: 'direct', phone: normalized, dev_code: process.env.NODE_ENV !== 'production' ? code : undefined });
   }

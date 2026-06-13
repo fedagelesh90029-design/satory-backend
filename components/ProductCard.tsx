@@ -91,7 +91,7 @@ export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFa
         <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
         <Text style={styles.sub} numberOfLines={1}>{item.category}{item.year ? ` · ${item.year}` : ''}</Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>{Number(item.price).toLocaleString('ru')} ₽{isByWeight ? '/г' : ''}</Text>
+          <Text style={styles.price}>{Number(item.price).toLocaleString('ru')} ₽{isByWeight ? '/г' : '/Шт'}</Text>
           <TouchableOpacity style={styles.cartBtn} onPress={handleCartPress}>
             <Ionicons name="cart-outline" size={16} color={Colors.bg} />
           </TouchableOpacity>
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { backgroundColor: Colors.card, borderRadius: 24, padding: 24, width: '100%', maxWidth: 300, borderContext: Colors.border, borderWidth: 1 },
+  modalContent: { backgroundColor: Colors.card, borderRadius: 24, padding: 24, width: '100%', maxWidth: 300, borderColor: Colors.border, borderWidth: 1 },
   modalTitle: { color: Colors.white, fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   modalSub: { color: Colors.gray, fontSize: 13, textAlign: 'center', marginBottom: 20 },
   inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 24 },

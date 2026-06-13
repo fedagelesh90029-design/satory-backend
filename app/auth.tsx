@@ -137,7 +137,7 @@ export default function AuthScreen() {
       const resp = await apiFetch('/auth/send-otp-telegram', { method: 'POST', body: JSON.stringify({ phone }) });
       if (resp.tg_link) {
         await Linking.openURL(resp.tg_link);
-        Alert.alert('Откройте Telegram', 'Нажмите «Старт» в боте Satori Tea — он пришлёт вам код.', [{ text: 'OK' }]);
+        Alert.alert('Откройте Telegram', 'Нажмите «Старт» в боте САТОРИ — он пришлёт вам код.', [{ text: 'OK' }]);
       }
       setDevCode(resp.dev_code || null);
       setSentVia(resp.method === 'review' ? 'review' : 'telegram');

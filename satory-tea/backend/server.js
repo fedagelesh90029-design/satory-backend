@@ -49,7 +49,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Статические файлы приложения (веб-версия и кассир)
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/api/health', (_, res) => res.json({ status: 'ok', app: 'Satori Tea' }));
+app.get('/api/health', (_, res) => res.json({ status: 'ok', app: 'САТОРИ' }));
 
 // SPA Routing: Любой маршрут, который не API, отдает index.html
 app.get('*', (req, res) => {

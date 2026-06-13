@@ -159,6 +159,7 @@ export default function ProductScreen() {
     : product.price;
 
   const isWeighted = product.weight && String(product.weight).toLowerCase().includes('г');
+  const isByWeight = product.unit === 'г' || product.unit === 'гр';
 
   const meta = product.meta || {};
 
@@ -247,7 +248,7 @@ export default function ProductScreen() {
           {(product.year || product.weight || display.show_price !== false) ? (
           <View style={styles.specsCard}>
             {display.show_price !== false && (
-              <SpecRow icon="pricetag-outline" label="Цена" value={`${Number(product.price).toLocaleString('ru')} ₽`} />
+              <SpecRow icon="pricetag-outline" label="Цена" value={`${Number(product.price).toLocaleString('ru')} ₽${isByWeight ? '/г' : '/Шт'}`} />
             )}
             {display.show_price !== false && product.weight && (() => {
               // Считаем цену за грамм если вес указан в граммах

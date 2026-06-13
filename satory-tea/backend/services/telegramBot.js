@@ -126,7 +126,7 @@ async function handleWebhook(update) {
     if (payload) {
       const pending = await db.otp_codes.findOne({ tg_link_hash: payload });
       if (!pending) {
-        await sendTelegramMessage(chatId, '❌ Ссылка устарела или недействительна.\n\nОткройте приложение Satori Tea и запросите код заново.');
+        await sendTelegramMessage(chatId, '❌ Ссылка устарела или недействительна.\n\nОткройте приложение САТОРИ и запросите код заново.');
         return;
       }
       if (Date.now() > pending.expires_at) {
@@ -154,7 +154,7 @@ async function handleWebhook(update) {
 
       await sendTelegramMessage(chatId,
         `👋 Привет, ${firstName}!\n\n` +
-        `✅ Telegram привязан к вашему аккаунту Satori Tea.\n\n` +
+        `✅ Telegram привязан к вашему аккаунту САТОРИ.\n\n` +
         `🔐 Ваш код подтверждения:\n\n` +
         `<b>${pending.code}</b>\n\n` +
         `⏱ Код действителен 5 минут.`
@@ -167,15 +167,15 @@ async function handleWebhook(update) {
 
     // /start без payload — просто приветствие
     await sendTelegramMessage(chatId,
-      `🍵 <b>Satori Tea</b>\n\n` +
+      `🍵 <b>САТОРИ</b>\n\n` +
       `Этот бот отправляет коды подтверждения для входа в приложение.\n\n` +
-      `Откройте приложение Satori Tea и нажмите «Получить код в Telegram».`
+      `Откройте приложение САТОРИ и нажмите «Получить код в Telegram».`
     );
     return;
   }
 
   await sendTelegramMessage(chatId,
-    `🍵 Откройте приложение <b>Satori Tea</b> и нажмите «Получить код в Telegram».`
+    `🍵 Откройте приложение <b>САТОРИ</b> и нажмите «Получить код в Telegram».`
   );
 }
 

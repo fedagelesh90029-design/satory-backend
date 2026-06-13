@@ -24,10 +24,10 @@ export async function showWelcomeNotification(name: string, isNew: boolean) {
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: isNew ? '🍵 Добро пожаловать в Satori!' : '🍵 С возвращением!',
+      title: isNew ? '🍵 Добро пожаловать в САТОРИ!' : '🍵 С возвращением!',
       body: isNew
         ? `${name}, рады видеть вас! Начисляем бонусы за каждую покупку.`
-        : `${name}, рады снова видеть вас в Satori Tea.`,
+        : `${name}, рады снова видеть вас в САТОРИ.`,
     },
     trigger: null, // сразу
   });
