@@ -52,7 +52,14 @@ export default function CatalogScreen() {
     if (search) params.set('search', search);
     try {
       const data = await apiFetch(`/products?${params}`);
-      setProducts(data);
+      const filtered = data.filter((item: any) => {
+        const isByWeight = item.unit === 'г' || item.unit === 'гр';
+        if (isByWeight) {
+          return (item.stock ?? 0) >= 25;
+        }
+        return true;
+      });
+      setProducts(filtered);
     } catch {}
   }, [category, search]);
 
@@ -80,7 +87,7 @@ export default function CatalogScreen() {
             <Ionicons name="cart-outline" size={20} color={Colors.gold} />
             {cartCount > 0 && (
               <View style={styles.cartBadge}>
-                <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
+                <Text style={styles.cartBadgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -126,8 +133,6 @@ export default function CatalogScreen() {
         })}
       </ScrollView>
 
-      <Text style={styles.count}>{products.length} товаров</Text>
-
       <FlatList
         data={products}
         keyExtractor={i => String(i._id || i.id)}
@@ -152,11 +157,7 @@ export default function CatalogScreen() {
                 if (isTeaToGo) {
                   router.push({ pathname: '/product', params: { id: item._id || item.id } });
                 } else {
-                  if (qty && qty > 1) {
-                    for(let i = 0; i < qty; i++) add(item);
-                  } else {
-                    add(item);
-                  }
+                  add(item, undefined, qty);
                 }
               }}
             />

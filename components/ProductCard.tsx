@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, TextInput, Alert, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
 import { apiFetch, MEDIA_BASE } from '../constants/api';
@@ -61,76 +61,98 @@ export function ProductCard({ item, onPress, onCart, isFavorited = false, hideFa
   };
 
   const confirmWeight = () => {
-    const val = parseInt(weight) || 25;
+    let val = parseInt(weight) || 25;
+    if (val < 25) {
+      Alert.alert('Внимание', 'Минимальный вес для заказа — 25 г');
+      setWeight('25');
+      return;
+    }
+    const maxStock = item.stock ?? 9999;
+    if (val > maxStock) {
+      Alert.alert('Внимание', `Недостаточно чая в наличии. Доступно только ${maxStock} г.`);
+      setWeight(String(maxStock));
+      return;
+    }
     if (onCart) onCart(val); else {
-      // В контексте корзины qty — это множитель. 
-      // Если товар по граммам, нам нужно либо добавить val штук, 
-      // либо изменить логику корзины. Но проще добавить val штук.
-      for(let i=0; i<val; i++) add(item);
+      add(item, undefined, val);
     }
     setQtyModal(false);
   };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      <View style={[styles.imageBox, { backgroundColor: placeholder.bg }]}>
-        {imageUri ? <Image source={{ uri: imageUri }} style={styles.image} /> : (
-          <View style={styles.placeholderBox}>
-            <View style={[styles.guschaOuter, { borderColor: placeholder.accent + '44' }]}><View style={[styles.guschaInner, { backgroundColor: placeholder.accent + '33' }]}><Text style={styles.placeholderEmoji}>{placeholder.emoji}</Text></View></View>
-            <Text style={[styles.placeholderName, { color: placeholder.accent }]} numberOfLines={1}>{item.name?.split(' ').slice(0, 2).join(' ')}</Text>
-          </View>
-        )}
-        {item.badge && <View style={[styles.badge, { backgroundColor: BADGE_COLORS[item.badge] || Colors.gold }]}><Text style={styles.badgeText}>{item.badge}</Text></View>}
-        {token && !hideFav && (
-          <TouchableOpacity style={styles.favBtn} onPress={toggleFav} disabled={favLoading} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name={fav ? 'heart' : 'heart-outline'} size={16} color={fav ? Colors.red : Colors.white} />
-          </TouchableOpacity>
-        )}
-      </View>
-      <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.sub} numberOfLines={1}>{item.category}{item.year ? ` · ${item.year}` : ''}</Text>
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>{Number(item.price).toLocaleString('ru')} ₽{isByWeight ? '/г' : ''}</Text>
-          <TouchableOpacity style={styles.cartBtn} onPress={handleCartPress}>
-            <Ionicons name="cart-outline" size={16} color={Colors.bg} />
-          </TouchableOpacity>
+    <>
+      <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
+        <View style={[styles.imageBox, { backgroundColor: placeholder.bg }]}>
+          {imageUri ? <Image source={{ uri: imageUri }} style={styles.image} /> : (
+            <View style={styles.placeholderBox}>
+              <View style={[styles.guschaOuter, { borderColor: placeholder.accent + '44' }]}><View style={[styles.guschaInner, { backgroundColor: placeholder.accent + '33' }]}><Text style={styles.placeholderEmoji}>{placeholder.emoji}</Text></View></View>
+              <Text style={[styles.placeholderName, { color: placeholder.accent }]} numberOfLines={1}>{item.name?.split(' ').slice(0, 2).join(' ')}</Text>
+            </View>
+          )}
+          {item.badge && <View style={[styles.badge, { backgroundColor: BADGE_COLORS[item.badge] || Colors.gold }]}><Text style={styles.badgeText}>{item.badge}</Text></View>}
+          {token && !hideFav && (
+            <TouchableOpacity style={styles.favBtn} onPress={toggleFav} disabled={favLoading} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name={fav ? 'heart' : 'heart-outline'} size={16} color={fav ? Colors.red : Colors.white} />
+            </TouchableOpacity>
+          )}
         </View>
-      </View>
+        <View style={styles.info}>
+          <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.sub} numberOfLines={1}>{item.category}{item.year ? ` · ${item.year}` : ''}</Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>{Number(item.price).toLocaleString('ru')} ₽{isByWeight ? '/г' : `/${item.unit || 'шт'}`}</Text>
+            <TouchableOpacity style={styles.cartBtn} onPress={handleCartPress}>
+              <Ionicons name="cart-outline" size={16} color={Colors.bg} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
 
       {/* Модалка выбора веса */}
       <Modal visible={qtyModal} transparent animationType="fade" onRequestClose={() => setQtyModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Сколько грамм?</Text>
-            <Text style={styles.modalSub}>{item.name}</Text>
-            <View style={styles.inputRow}>
-              <TouchableOpacity onPress={() => setWeight(Math.max(1, (parseInt(weight)||0)-5).toString())} style={styles.stepBtn}>
-                <Ionicons name="remove" size={20} color={Colors.gold} />
-              </TouchableOpacity>
-              <TextInput
-                style={styles.input}
-                value={weight}
-                onChangeText={setWeight}
-                keyboardType="number-pad"
-                autoFocus
-              />
-              <TouchableOpacity onPress={() => setWeight(((parseInt(weight)||0)+5).toString())} style={styles.stepBtn}>
-                <Ionicons name="add" size={20} color={Colors.gold} />
-              </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setQtyModal(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Сколько грамм?</Text>
+              <Text style={styles.modalSub}>{item.name}</Text>
+              <View style={styles.inputRow}>
+                <TouchableOpacity onPress={() => setWeight(Math.max(25, (parseInt(weight)||0)-5).toString())} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>-5</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setWeight(Math.max(25, (parseInt(weight)||0)-1).toString())} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>-1</Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="number-pad"
+                  autoFocus
+                />
+                <TouchableOpacity onPress={() => setWeight(Math.min(item.stock ?? 9999, (parseInt(weight)||0)+1).toString())} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>+1</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setWeight(Math.min(item.stock ?? 9999, (parseInt(weight)||0)+5).toString())} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>+5</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalBtns}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setQtyModal(false)}>
+                  <Text style={styles.cancelText}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.confirmBtn} onPress={confirmWeight}>
+                  <Text style={styles.confirmText}>В корзину</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.modalBtns}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setQtyModal(false)}>
-                <Text style={styles.cancelText}>Отмена</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={confirmWeight}>
-                <Text style={styles.confirmText}>В корзину</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
-    </TouchableOpacity>
+    </>
   );
 }
 
@@ -155,11 +177,12 @@ const styles = StyleSheet.create({
   
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { backgroundColor: Colors.card, borderRadius: 24, padding: 24, width: '100%', maxWidth: 300, borderContext: Colors.border, borderWidth: 1 },
+  modalContent: { backgroundColor: Colors.card, borderRadius: 24, padding: 24, width: '100%', maxWidth: 300, borderColor: Colors.border, borderWidth: 1 },
   modalTitle: { color: Colors.white, fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   modalSub: { color: Colors.gray, fontSize: 13, textAlign: 'center', marginBottom: 20 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 24 },
-  stepBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 24 },
+  stepBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  stepBtnText: { color: Colors.gold, fontSize: 13, fontWeight: '700' },
   input: { color: Colors.gold, fontSize: 32, fontWeight: '800', textAlign: 'center', width: 80 },
   modalBtns: { flexDirection: 'row', gap: 12 },
   cancelBtn: { flex: 1, paddingVertical: 14, alignItems: 'center' },

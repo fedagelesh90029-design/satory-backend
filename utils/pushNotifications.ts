@@ -44,10 +44,10 @@ export async function registerPushToken(token: string): Promise<void> {
     // Android — создаём канал уведомлений ДО получения токена
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'Satori Tea',
+        name: 'САТОРИ',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#C9A84C',
+        lightColor: '#E4B10D',
       });
     }
 

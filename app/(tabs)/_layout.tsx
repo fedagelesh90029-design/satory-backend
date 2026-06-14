@@ -6,23 +6,6 @@ import { useRouter, usePathname } from 'expo-router';
 import { Colors } from '../../constants/theme';
 import { useCart } from '../../context/CartContext';
 
-function ChatFAB() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const insets = useSafeAreaInsets();
-  // Не показываем FAB на экране чата
-  if (pathname === '/chat') return null;
-  return (
-    <TouchableOpacity
-      style={[styles.fab, { bottom: 60 + Math.max(insets.bottom, 12) + 16 }]}
-      onPress={() => router.push('/chat')}
-      activeOpacity={0.85}
-    >
-      <Ionicons name="chatbubble-ellipses" size={24} color={Colors.bg} />
-    </TouchableOpacity>
-  );
-}
-
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const router = useRouter();
   const { count } = useCart();
@@ -31,23 +14,27 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   const tabs = [
     { name: 'index',   label: 'Главная',  icon: 'home-outline' },
     { name: 'catalog', label: 'Каталог',  icon: 'cube-outline' },
+    { name: 'chat',    label: 'Чат',      icon: 'chatbubble-ellipses-outline' },
     { name: 'events',  label: 'События',  icon: 'calendar-outline' },
     { name: 'profile', label: 'Профиль',  icon: 'person-outline' },
   ];
 
   return (
     <View style={styles.tabBarWrapper}>
-      {/* Chat FAB — поверх таббара, правый угол */}
-      <ChatFAB />
-
       <View style={[styles.tabBar, { height: 60 + Math.max(insets.bottom - 10, 0), paddingBottom: Math.max(insets.bottom, 12) }]}>
-        {tabs.map((tab, i) => {
-          const isFocused = state.index === i;
+        {tabs.map((tab) => {
+          const isFocused = state.routes[state.index].name === tab.name;
           return (
             <TouchableOpacity
               key={tab.name}
               style={styles.tabItem}
-              onPress={() => navigation.navigate(tab.name)}
+              onPress={() => {
+                if (tab.name === 'chat') {
+                  router.push('/chat');
+                } else {
+                  navigation.navigate(tab.name);
+                }
+              }}
               activeOpacity={0.7}
             >
               <View style={styles.tabIconWrap}>

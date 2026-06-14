@@ -2,7 +2,7 @@ export const Colors = {
   bg: '#0A0A0A',
   card: '#1A1A1A',
   cardAlt: '#141414',
-  gold: '#D4A017',
+  gold: '#E4B10D',
   goldLight: '#E8B84B',
   white: '#FFFFFF',
   gray: '#888888',
