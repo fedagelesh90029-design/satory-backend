@@ -135,8 +135,65 @@ async function syncProductsFromIiko() {
   return await syncFromExternalMenu(token, externalMenuId);
 }
 
+function extractStockBalances(body) {
+  const stockMap = {};
+
+  function traverse(obj) {
+    if (!obj || typeof obj !== 'object') return;
+
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        if (item && typeof item === 'object') {
+          const pId = item.productId || item.itemId || item.id;
+          const bal = item.balance !== undefined ? item.balance : item.amount;
+          if (pId && bal !== undefined) {
+            stockMap[pId] = Number(bal);
+          } else {
+            traverse(item);
+          }
+        }
+      }
+    } else {
+      const pId = obj.productId || obj.itemId || obj.id;
+      const bal = obj.balance !== undefined ? obj.balance : obj.amount;
+      if (pId && bal !== undefined) {
+        stockMap[pId] = Number(bal);
+      } else {
+        for (const key of Object.keys(obj)) {
+          traverse(obj[key]);
+        }
+      }
+    }
+  }
+
+  traverse(body);
+  return stockMap;
+}
+
 async function syncFromExternalMenu(token, menuId) {
   console.log(`[iiko-api] Синхронизация из внешнего меню ID=${menuId}...`);
+
+  // Получаем остатки по API
+  let stockMap = {};
+  let hasStockInfo = false;
+  try {
+    console.log('[iiko-api] Получение остатков на складах по /api/1/stock_out_balances...');
+    const stockRes = await httpsRequest(
+      'https://api-ru.iiko.services/api/1/stock_out_balances',
+      'POST',
+      { organizationIds: [IIKO_ORGANIZATION_ID] },
+      { Authorization: `Bearer ${token}` }
+    );
+    if (stockRes.status === 200) {
+      stockMap = extractStockBalances(stockRes.body);
+      hasStockInfo = true;
+      console.log(`[iiko-api] Успешно получено остатков для ${Object.keys(stockMap).length} товаров`);
+    } else {
+      console.warn(`[iiko-api] Не удалось получить остатки (статус ${stockRes.status}):`, JSON.stringify(stockRes.body));
+    }
+  } catch (err) {
+    console.error('[iiko-api] Ошибка при получении остатков с iiko:', err.message);
+  }
 
   const res = await httpsRequest(
     MENU_BY_ID_URL,
@@ -186,20 +243,45 @@ async function syncFromExternalMenu(token, menuId) {
 
       const iikoId = item.itemId || item.id;
       
-      // Определение единицы измерения на основе категории и названия
+      // Определение единицы измерения на основе iiko measureUnit или категории/названия
       let unit = 'г';
-      const lowerName = item.name.toLowerCase();
-      const lowerCat = categoryName.toLowerCase();
+      const rawUnit = (item.measureUnit || item.unit || item.measureUnitName || '').toLowerCase().trim();
       
-      if (lowerCat.includes('посуда') || lowerCat.includes('аксессуар') || lowerCat.includes('чаш') || lowerCat.includes('пиал') || lowerCat.includes('гайван') || lowerCat.includes('чабан')) {
-        unit = lowerName.includes('набор') ? 'набор' : 'шт';
-      } else if (lowerCat.includes('еда') || lowerCat.includes('десерт')) {
+      if (rawUnit === 'кг' || rawUnit === 'г' || rawUnit === 'гр' || rawUnit === 'грамм') {
+        unit = 'г';
+      } else if (rawUnit === 'шт' || rawUnit === 'шт.' || rawUnit === 'штука') {
         unit = 'шт';
-      } else if (lowerName.includes('упак') || lowerName.includes('пачк') || lowerName.includes('блин') || lowerName.includes('плитк')) {
+      } else if (rawUnit === 'упак' || rawUnit === 'упаковка' || rawUnit === 'пачка') {
         unit = 'упак';
+      } else if (rawUnit === 'набор') {
+        unit = 'набор';
+      } else {
+        // Fallback к эвристике на основе категорий и названий
+        const lowerName = item.name.toLowerCase();
+        const lowerCat = categoryName.toLowerCase();
+        
+        if (lowerCat.includes('посуда') || lowerCat.includes('аксессуар') || lowerCat.includes('чаш') || lowerCat.includes('пиал') || lowerCat.includes('гайван') || lowerCat.includes('чабан')) {
+          unit = lowerName.includes('набор') ? 'набор' : 'шт';
+        } else if (lowerCat.includes('еда') || lowerCat.includes('десерт')) {
+          unit = 'шт';
+        } else if (lowerName.includes('упак') || lowerName.includes('пачк') || lowerName.includes('блин') || lowerName.includes('плитк')) {
+          unit = 'упак';
+        }
       }
 
       incomingIds.push(iikoId);
+
+      // Рассчитываем остаток товара на основе данных с iiko
+      let stockVal = undefined;
+      if (hasStockInfo) {
+        if (stockMap[iikoId] !== undefined) {
+          const rawBal = stockMap[iikoId];
+          stockVal = (unit === 'г' || unit === 'гр') ? Math.round(rawBal * 1000) : Math.round(rawBal);
+        } else {
+          // Если товара нет в отчете по остаткам, считаем, что его остаток не ограничен (например, 9999 или 999)
+          stockVal = (unit === 'г' || unit === 'гр') ? 9999 : 999;
+        }
+      }
 
       const existing = await db.products.findOne({ iiko_id: iikoId });
       if (existing) {
@@ -213,16 +295,21 @@ async function syncFromExternalMenu(token, menuId) {
           updated_at: now 
         };
         if (imageUrl) updateFields.image_url = imageUrl;
+        if (hasStockInfo) updateFields.stock = stockVal;
+        
         await db.products.update({ iiko_id: iikoId }, { $set: updateFields });
         updated++;
       } else {
-        await db.products.insert({
+        const insertDoc = {
           iiko_id: iikoId, name: item.name, category: categoryName, price,
           description: item.description || '', image_url: imageUrl, active: true,
           unit,
           is_manual: false, price_override: null, category_override: null,
           rating: 0, reviews_count: 0, badge: null, created_at: now, updated_at: now,
-        });
+        };
+        if (hasStockInfo) insertDoc.stock = stockVal;
+        
+        await db.products.insert(insertDoc);
         added++;
       }
     }
