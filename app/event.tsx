@@ -24,18 +24,23 @@ export default function EventDetailScreen() {
 
   useEffect(() => {
     if (!id) return;
-    apiFetch(`/events/${id}`)
-      .then(setEvent)
+    apiFetch(`/events/${id}`, {}, token)
+      .then((data) => {
+        setEvent(data);
+        if (data.registered !== undefined) {
+          setReg(data.registered);
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, token]);
 
   const register = async () => {
     if (!token) { router.push('/auth'); return; }
     setRegLoad(true);
     try {
       await apiFetch(`/events/${id}/register`, { method: 'POST' }, token);
-      const updated = await apiFetch(`/events/${id}`);
+      const updated = await apiFetch(`/events/${id}`, {}, token);
       setEvent(updated);
       setReg(true);
     } catch (e: any) {
@@ -47,6 +52,35 @@ export default function EventDetailScreen() {
     } finally {
       setRegLoad(false);
     }
+  };
+
+  const unregister = async () => {
+    if (!token) { router.push('/auth'); return; }
+    Alert.alert(
+      'Отмена записи',
+      'Вы уверены, что хотите отменить запись на это событие?',
+      [
+        { text: 'Нет', style: 'cancel' },
+        {
+          text: 'Да, отменить',
+          style: 'destructive',
+          onPress: async () => {
+            setRegLoad(true);
+            try {
+              await apiFetch(`/events/${id}/unregister`, { method: 'POST' }, token);
+              const updated = await apiFetch(`/events/${id}`, {}, token);
+              setEvent(updated);
+              setReg(false);
+              Alert.alert('Успешно', 'Запись отменена');
+            } catch (e: any) {
+              Alert.alert('Ошибка', e.message);
+            } finally {
+              setRegLoad(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   if (loading) return (
@@ -166,9 +200,37 @@ export default function EventDetailScreen() {
       {/* Кнопка записи */}
       <View style={styles.bottomBar}>
         {registered ? (
-          <View style={[styles.regBtn, styles.regBtnDone]}>
-            <Ionicons name="checkmark-circle" size={20} color={Colors.white} />
-            <Text style={styles.regBtnText}>Вы записаны!</Text>
+          <View style={{ gap: 10 }}>
+            <TouchableOpacity 
+              style={[styles.regBtn, styles.regBtnDone]}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (event.payment_status === 'paid') {
+                  Alert.alert('Запись оплачена', 'Для отмены или изменения оплаченной записи, пожалуйста, свяжитесь с администратором.');
+                }
+              }}
+            >
+              <Ionicons name="checkmark-circle" size={20} color={Colors.white} />
+              <Text style={styles.regBtnText}>
+                {event.payment_status === 'paid' ? 'Запись оплачена' : 'Вы записаны'}
+              </Text>
+            </TouchableOpacity>
+            {event.payment_status !== 'paid' && (
+              <TouchableOpacity
+                style={[styles.regBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.red }]}
+                onPress={unregister}
+                disabled={regLoading}
+              >
+                {regLoading ? (
+                  <ActivityIndicator color={Colors.red} size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="close-circle-outline" size={20} color={Colors.red} />
+                    <Text style={[styles.regBtnText, { color: Colors.red }]}>Отменить запись</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <TouchableOpacity

@@ -16,10 +16,41 @@ router.get('/', async (req, res) => {
   res.json(events);
 });
 
+const jwt = require('jsonwebtoken');
+const SECRET = process.env.JWT_SECRET || 'satory_secret_2026';
+
 router.get('/:id', async (req, res) => {
-  const event = await db.events.findOne({ _id: req.params.id, is_active: { $ne: false } });
-  if (!event) return res.status(404).json({ error: 'Не найдено' });
-  res.json(event);
+  try {
+    const event = await db.events.findOne({ _id: req.params.id, is_active: { $ne: false } });
+    if (!event) return res.status(404).json({ error: 'Не найдено' });
+
+    let registered = false;
+    let payment_status = null;
+
+    const header = req.headers.authorization;
+    if (header) {
+      const token = header.split(' ')[1];
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, SECRET);
+          if (decoded && decoded.id) {
+            const reg = await db.registrations.findOne({ user_id: decoded.id, event_id: req.params.id });
+            if (reg) {
+              registered = true;
+              payment_status = reg.payment_status || 'unpaid';
+            }
+          }
+        } catch (e) {
+          // Игнорируем ошибки токена для публичного роута
+        }
+      }
+    }
+
+    res.json(Object.assign({}, event, { registered, payment_status }));
+  } catch (error) {
+    console.error('[events] Error fetching event details:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 router.post('/:id/register', auth, async (req, res) => {
@@ -105,6 +136,32 @@ router.post('/:id/register/confirm', auth, async (req, res) => {
   await db.events.update({ _id: req.params.id }, { $set: { seats_taken: (event.seats_taken || 0) + 1 } });
 
   res.json({ success: true, event_title: event.title });
+});
+
+// POST /api/events/:id/unregister — отменить запись на событие
+router.post('/:id/unregister', auth, async (req, res) => {
+  try {
+    const reg = await db.registrations.findOne({ user_id: req.user.id, event_id: req.params.id });
+    if (!reg) return res.status(400).json({ error: 'Вы не записаны на это событие' });
+
+    if (reg.payment_status === 'paid') {
+      return res.status(400).json({ error: 'Нельзя отменить оплаченную запись через приложение. Обратитесь к администратору.' });
+    }
+
+    await db.registrations.remove({ _id: reg._id });
+
+    // Уменьшаем seats_taken на событии
+    const event = await db.events.findOne({ _id: req.params.id });
+    if (event) {
+      const taken = Math.max(0, (event.seats_taken || 0) - 1);
+      await db.events.update({ _id: req.params.id }, { $set: { seats_taken: taken } });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[events] Error unregistering:', error);
+    res.status(500).json({ error: 'Ошибка сервера при отмене записи' });
+  }
 });
 
 module.exports = router;
