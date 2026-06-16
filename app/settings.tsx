@@ -75,7 +75,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <TouchableOpacity
             style={styles.linkRow}
-            onPress={() => Linking.openURL('https://vk.com/satori_tea')}
+            onPress={() => Linking.openURL('https://vk.com/satori_tea_sochi')}
           >
             <Text style={styles.rowLabel}>Страница ВКонтакте</Text>
             <Ionicons name="open-outline" size={16} color={Colors.gray} />
@@ -89,7 +89,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
           <View style={[styles.row, { borderTopWidth: 1, borderTopColor: Colors.border }]}>
             <Text style={styles.rowLabel}>Версия приложения</Text>
-            <Text style={styles.rowValue}>1.0.0</Text>
+            <Text style={styles.rowValue}>1.3.9</Text>
           </View>
         </View>
 
