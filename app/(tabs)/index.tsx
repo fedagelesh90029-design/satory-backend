@@ -35,12 +35,12 @@ export default function HomeScreen() {
         return true;
       });
       setProducts(filtered);
-    }).catch(() => {});
-    apiFetch('/events').then(setEvents).catch(() => {});
+    }).catch(() => { });
+    apiFetch('/events').then(setEvents).catch(() => { });
   }, []);
 
-  const featured = products.filter(p => p.badge).length > 0 
-    ? products.filter(p => p.badge) 
+  const featured = products.filter(p => p.badge).length > 0
+    ? products.filter(p => p.badge)
     : products.slice(0, 8);
   const upcoming = events.slice(0, 2);
 
@@ -70,7 +70,7 @@ export default function HomeScreen() {
 
       {/* Content wrapper with 20px padding */}
       <View style={{ paddingHorizontal: 20 }}>
-        
+
         {/* AI Chat bubble */}
         {(() => {
           const greetingName = user?.name ? user.name : 'друг';
@@ -118,19 +118,46 @@ export default function HomeScreen() {
         </ImageBackground>
 
         {/* Stats */}
-        <View style={styles.statsRow}>
-          {[
-            { icon: 'leaf-outline', value: 'Селективный чай', label: 'Прямые поставки из Китая' },
-            { icon: 'flame-outline', value: 'Атмосфера', label: 'Уникальная концепция и стиль' },
-            { icon: 'star-outline', value: '5.0★', label: 'Рейтинг Топ-1 в г. Сочи' },
-          ].map((s, i) => (
-            <View key={i} style={styles.statCard}>
-              <Ionicons name={s.icon as any} size={20} color={Colors.gold} />
-              <Text style={styles.statValue}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
+        {width < 500 ? (
+          <View style={styles.verticalStats}>
+            {[
+              { icon: 'leaf-outline', value: 'Селективный чай', label: 'Прямые поставки из Китая' },
+              { icon: 'flame-outline', value: 'Атмосфера', label: 'Уникальная концепция и стиль' },
+              { icon: 'star-outline', value: '5.0★', label: 'Рейтинг Топ-1 в г. Сочи' },
+            ].map((s, i) => (
+              <View key={i} style={styles.verticalStatCard}>
+                <View style={styles.verticalStatIconBox}>
+                  <Ionicons name={s.icon as any} size={20} color={Colors.gold} />
+                </View>
+                <View style={styles.verticalStatText}>
+                  <Text style={styles.verticalStatValue}>{s.value}</Text>
+                  <Text style={styles.verticalStatLabel}>{s.label}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.statsRow}>
+            {[
+              { icon: 'leaf-outline', value: 'Селективный чай', label: 'Прямые поставки из Китая' },
+              { icon: 'flame-outline', value: 'Атмосфера', label: 'Уникальная концепция и стиль' },
+              { icon: 'star-outline', value: '5.0★', label: 'Рейтинг Топ-1 в г. Сочи' },
+            ].map((s, i) => (
+              <View key={i} style={styles.statCard}>
+                <Ionicons name={s.icon as any} size={20} color={Colors.gold} style={{ marginBottom: 2 }} />
+                <Text
+                  style={styles.statValue}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
+                  {s.value}
+                </Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Featured */}
         <View style={styles.section}>
@@ -256,11 +283,51 @@ const styles = StyleSheet.create({
   bannerBtnText: { color: Colors.bg, fontWeight: '700', fontSize: 14 },
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   statCard: {
-    flex: 1, backgroundColor: Colors.card, borderRadius: 14,
-    padding: 12, alignItems: 'center', gap: 4,
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 4,
   },
-  statValue: { color: Colors.white, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  statLabel: { color: Colors.gray, fontSize: 10, textAlign: 'center' },
+  verticalStats: {
+    gap: 8,
+    marginBottom: 24,
+  },
+  verticalStatCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 12,
+    gap: 12,
+  },
+  verticalStatIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: Colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verticalStatText: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  verticalStatValue: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  verticalStatLabel: {
+    color: Colors.gray,
+    fontSize: 11,
+  },
+  statValue: { color: Colors.white, fontSize: 13, fontWeight: '700', textAlign: 'center', lineHeight: 16 },
+  statLabel: { color: Colors.gray, fontSize: 10, textAlign: 'center', lineHeight: 13 },
   section: { marginBottom: 24 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { color: Colors.white, fontSize: 18, fontWeight: '700' },
