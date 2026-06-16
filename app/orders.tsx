@@ -124,6 +124,27 @@ export default function OrdersScreen() {
                         <Text style={styles.orderItemPrice}>{(it.price * it.qty).toLocaleString('ru')} ₽</Text>
                       </View>
                     ))}
+
+                    <View style={styles.deliveryDivider} />
+                    <View style={styles.deliveryRow}>
+                      <Text style={styles.deliveryLabel}>Способ получения:</Text>
+                      <Text style={styles.deliveryValue}>
+                        {item.delivery_type === 'delivery' ? 'Доставка' : 'На месте'}
+                      </Text>
+                    </View>
+                    {item.delivery_type === 'delivery' && !!item.delivery_address && (
+                      <View style={[styles.deliveryRow, { marginTop: 4 }]}>
+                        <Text style={styles.deliveryLabel}>Адрес доставки:</Text>
+                        <Text style={styles.deliveryValue}>{item.delivery_address}</Text>
+                      </View>
+                    )}
+                    <View style={[styles.deliveryRow, { marginTop: 4 }]}>
+                      <Text style={styles.deliveryLabel}>Статус оплаты:</Text>
+                      <Text style={[styles.deliveryValue, { color: item.payment_status === 'paid' ? Colors.green : Colors.red, fontWeight: '700' }]}>
+                        {item.payment_status === 'paid' ? 'Оплачен' : 'Не оплачен'}
+                      </Text>
+                    </View>
+
                     <View style={styles.orderSummary}>
                       <Text style={styles.orderSummaryLabel}>Итого</Text>
                       <Text style={styles.orderSummaryValue}>{Number(item.total).toLocaleString('ru')} ₽</Text>
@@ -176,4 +197,8 @@ const styles = StyleSheet.create({
   orderSummary:     { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.border },
   orderSummaryLabel: { color: Colors.gray, fontSize: 13 },
   orderSummaryValue: { color: Colors.white, fontSize: 15, fontWeight: '700' },
+  deliveryDivider:  { height: 1, backgroundColor: Colors.border, marginTop: 12, marginBottom: 12 },
+  deliveryRow:      { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  deliveryLabel:    { color: Colors.gray, fontSize: 13 },
+  deliveryValue:    { color: Colors.white, fontSize: 13, flex: 1, textAlign: 'right' },
 });

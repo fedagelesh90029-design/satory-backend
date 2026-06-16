@@ -1597,12 +1597,41 @@ async function renderOrders() {
   const statusColors = {pending:'badge-orange',confirmed:'badge-blue',ready:'badge-green',completed:'badge-blue',cancelled:'badge-red'};
 
   wrap.innerHTML=`<table>
-    <thead><tr><th>№</th><th>Гость</th><th>Состав</th><th>Сумма</th><th>Статус</th><th>Дата</th><th></th></tr></thead>
+    <thead><tr>
+      <th>№</th>
+      <th>Гость</th>
+      <th>Доставка</th>
+      <th>Состав</th>
+      <th>Сумма</th>
+      <th>Оплата</th>
+      <th>Статус</th>
+      <th>Дата</th>
+      <th>Действия</th>
+    </tr></thead>
     <tbody>${orders.map(o=>`<tr>
       <td style="font-family:monospace;color:var(--gold)">#${o._id.slice(-6).toUpperCase()}</td>
-      <td><strong>${o.user_name||'—'}</strong><br><span style="color:var(--muted);font-size:12px">${o.user_phone||''}</span></td>
+      <td>
+        <strong>${o.user_name||'—'}</strong><br>
+        <span style="color:var(--muted);font-size:12px">${o.user_phone||''}</span>
+        ${o.phone && o.phone !== o.user_phone ? `<br><span style="color:var(--gold);font-size:11px;font-weight:600">Тел: ${o.phone}</span>` : ''}
+      </td>
+      <td style="font-size:13px">
+        <span class="badge ${o.delivery_type === 'delivery' ? 'badge-orange' : 'badge-blue'}">
+          ${o.delivery_type === 'delivery' ? 'Доставка' : 'На месте'}
+        </span>
+        ${o.delivery_type === 'delivery' && o.delivery_address ? `<br><span style="color:var(--muted);font-size:12px">${o.delivery_address}</span>` : ''}
+      </td>
       <td style="font-size:13px">${(o.items||[]).map(i=>`${i.name} ×${i.qty}`).join('<br>')}</td>
       <td style="color:var(--gold);font-weight:700">${Number(o.total).toLocaleString('ru')} ₽</td>
+      <td>
+        <select onchange="changeOrderPaymentStatus('${o._id}',this.value)" style="font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;border:1px solid;outline:none;cursor:pointer;
+          ${o.payment_status === 'paid' 
+            ? 'background:rgba(76,175,80,.15);color:#4CAF50;border-color:rgba(76,175,80,.3)' 
+            : 'background:rgba(229,57,53,.15);color:#E53935;border-color:rgba(229,57,53,.3)'}">
+          <option value="unpaid" ${o.payment_status!=='paid'?'selected':''}>Не оплачен</option>
+          <option value="paid" ${o.payment_status==='paid'?'selected':''}>Оплачен</option>
+        </select>
+      </td>
       <td><span class="badge ${statusColors[o.status]||'badge-blue'}">${statusLabels[o.status]||o.status}</span></td>
       <td style="font-size:12px;color:var(--muted)">${fmtDate(o.created_at)}</td>
       <td>
@@ -1618,6 +1647,11 @@ function fmtDate(d) { return d ? new Date(d).toLocaleString('ru-RU',{day:'2-digi
 async function changeOrderStatus(id, status) {
   const r = await api('PUT',`/api/admin/orders/${id}/status`,{status});
   if(r) { toast('Статус обновлён'); renderOrders(); }
+}
+
+async function changeOrderPaymentStatus(id, payment_status) {
+  const r = await api('PUT',`/api/admin/orders/${id}/payment`,{payment_status});
+  if(r) { toast('Статус оплаты обновлён'); renderOrders(); }
 }
 
 // ════════════════════════════════════════════════════════════

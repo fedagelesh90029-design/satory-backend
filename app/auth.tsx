@@ -24,19 +24,30 @@ export default function AuthScreen() {
   const [emailMode, setEmailMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Ошибка', 'Заполните все поля');
+      showAlert('Ошибка', 'Заполните все поля');
       return;
     }
     setLoading(true);
+    setError(null);
     try {
       await login(email.trim().toLowerCase(), password);
       await showWelcomeNotification(email.trim().toLowerCase(), false);
       router.replace('/(tabs)/profile');
     } catch (e: any) {
-      Alert.alert('Ошибка', e.message || 'Неверный email или пароль');
+      showAlert('Ошибка', e.message || 'Неверный email или пароль');
+      setError(e.message || 'Неверный email или пароль');
     } finally {
       setLoading(false);
     }
@@ -44,16 +55,18 @@ export default function AuthScreen() {
 
   const handleEmailRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Ошибка', 'Заполните все поля');
+      showAlert('Ошибка', 'Заполните все поля');
       return;
     }
     setLoading(true);
+    setError(null);
     try {
       await register(name.trim(), email.trim().toLowerCase(), password);
       await showWelcomeNotification(name.trim(), true);
       router.replace('/(tabs)/profile');
     } catch (e: any) {
-      Alert.alert('Ошибка', e.message || 'Ошибка регистрации');
+      showAlert('Ошибка', e.message || 'Ошибка регистрации');
+      setError(e.message || 'Ошибка регистрации');
     } finally {
       setLoading(false);
     }
@@ -102,6 +115,7 @@ export default function AuthScreen() {
   };
 
   const onPhoneChange = (text: string) => {
+    setError(null);
     // Проверяем, удаляет ли пользователь символы
     const isDeleting = text.length < phone.length;
     if (isDeleting) {
@@ -114,8 +128,9 @@ export default function AuthScreen() {
 
   const sendOtp = async () => {
     const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10) { Alert.alert('Ошибка', 'Введите корректный номер телефона'); return; }
+    if (digits.length < 10) { showAlert('Ошибка', 'Введите корректный номер телефона'); return; }
     setLoading(true);
+    setError(null);
     try {
       const resp = await apiFetch('/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone }) });
       setDevCode(resp.dev_code || null);
@@ -123,7 +138,8 @@ export default function AuthScreen() {
       setMode('otp');
       startCountdown();
     } catch (e: any) {
-      Alert.alert('Ошибка', e.message);
+      showAlert('Ошибка', e.message);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -131,20 +147,26 @@ export default function AuthScreen() {
 
   const sendOtpViaTelegram = async () => {
     const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10) { Alert.alert('Ошибка', 'Введите корректный номер телефона'); return; }
+    if (digits.length < 10) { showAlert('Ошибка', 'Введите корректный номер телефона'); return; }
     setTgLoading(true);
+    setError(null);
     try {
       const resp = await apiFetch('/auth/send-otp-telegram', { method: 'POST', body: JSON.stringify({ phone }) });
       if (resp.tg_link) {
         await Linking.openURL(resp.tg_link);
-        Alert.alert('Откройте Telegram', 'Нажмите «Старт» в боте САТОРИ — он пришлёт вам код.', [{ text: 'OK' }]);
+        if (Platform.OS === 'web') {
+          alert('Откройте Telegram: Нажмите «Старт» в боте САТОРИ — он пришлёт вам код.');
+        } else {
+          Alert.alert('Откройте Telegram', 'Нажмите «Старт» в боте САТОРИ — он пришлёт вам код.', [{ text: 'OK' }]);
+        }
       }
       setDevCode(resp.dev_code || null);
       setSentVia(resp.method === 'review' ? 'review' : 'telegram');
       setMode('otp');
       startCountdown();
     } catch (e: any) {
-      Alert.alert('Ошибка', e.message);
+      showAlert('Ошибка', e.message);
+      setError(e.message);
     } finally {
       setTgLoading(false);
     }
@@ -152,8 +174,9 @@ export default function AuthScreen() {
 
   const verifyOtp = async () => {
     const code = otp.join('');
-    if (code.length < 6) { Alert.alert('Ошибка', 'Введите 6-значный код'); return; }
+    if (code.length < 6) { showAlert('Ошибка', 'Введите 6-значный код'); return; }
     setLoading(true);
+    setError(null);
     try {
       const data = await apiFetch('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ phone, code }) });
       if (data.is_new) {
@@ -163,19 +186,30 @@ export default function AuthScreen() {
       await loginWithPhone(data.token, data.user);
       await showWelcomeNotification(data.user.name || 'Гость', false);
       router.replace('/(tabs)/profile');
-    } catch (e: any) { Alert.alert('Ошибка', e.message); } finally { setLoading(false); }
+    } catch (e: any) {
+      showAlert('Ошибка', e.message);
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const saveName = async () => {
-    if (!name.trim()) { Alert.alert('Ошибка', 'Введите имя'); return; }
+    if (!name.trim()) { showAlert('Ошибка', 'Введите имя'); return; }
     if (!pendingToken || !pendingUser) { setMode('phone'); return; }
     setLoading(true);
+    setError(null);
     try {
       await apiFetch('/user/me', { method: 'PUT', body: JSON.stringify({ name }) }, pendingToken);
       await loginWithPhone(pendingToken, { ...pendingUser, name });
       await showWelcomeNotification(name, true);
       router.replace('/(tabs)/profile');
-    } catch (e: any) { Alert.alert('Ошибка', e.message); } finally { setLoading(false); }
+    } catch (e: any) {
+      showAlert('Ошибка', e.message);
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOtpChange = (val: string, idx: number) => {
@@ -208,7 +242,7 @@ export default function AuthScreen() {
 
   // ── Render ──────────────────────────────────────────────────
   if (mode === 'phone') return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <View style={styles.logoBox}>
           <SatoryLogoFull size={44} />
@@ -219,13 +253,13 @@ export default function AuthScreen() {
         <View style={styles.toggleRow}>
           <TouchableOpacity 
             style={[styles.toggleBtn, loginMethod === 'phone' && styles.toggleBtnActive]}
-            onPress={() => setLoginMethod('phone')}
+            onPress={() => { setLoginMethod('phone'); setError(null); }}
           >
             <Text style={[styles.toggleText, loginMethod === 'phone' && styles.toggleTextActive]}>Телефон</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.toggleBtn, loginMethod === 'email' && styles.toggleBtnActive]}
-            onPress={() => setLoginMethod('email')}
+            onPress={() => { setLoginMethod('email'); setError(null); }}
           >
             <Text style={[styles.toggleText, loginMethod === 'email' && styles.toggleTextActive]}>Email</Text>
           </TouchableOpacity>
@@ -247,6 +281,7 @@ export default function AuthScreen() {
                 maxLength={18}
               />
             </View>
+            {!!error && <Text style={styles.errorText}>{error}</Text>}
             <TouchableOpacity style={[styles.btn, tgLoading && styles.btnDisabled]} onPress={sendOtpViaTelegram} disabled={tgLoading}>
               <Ionicons name="paper-plane" size={18} color={Colors.bg} />
               <Text style={styles.btnText}>{tgLoading ? 'Открываем...' : 'Получить код в Telegram'}</Text>
@@ -263,7 +298,7 @@ export default function AuthScreen() {
                 placeholder="Ваше имя"
                 placeholderTextColor={Colors.gray}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(t) => { setName(t); setError(null); }}
                 autoCapitalize="words"
               />
             )}
@@ -273,7 +308,7 @@ export default function AuthScreen() {
               placeholder="E-mail"
               placeholderTextColor={Colors.gray}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(t) => { setEmail(t); setError(null); }}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -283,11 +318,12 @@ export default function AuthScreen() {
               placeholder="Пароль"
               placeholderTextColor={Colors.gray}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(t) => { setPassword(t); setError(null); }}
               secureTextEntry
               autoCapitalize="none"
             />
 
+            {!!error && <Text style={styles.errorText}>{error}</Text>}
             <TouchableOpacity 
               style={[styles.btn, loading && styles.btnDisabled]} 
               onPress={emailMode === 'login' ? handleEmailLogin : handleEmailRegister} 
@@ -300,7 +336,7 @@ export default function AuthScreen() {
 
             <TouchableOpacity 
               style={{ marginTop: 20, alignItems: 'center' }} 
-              onPress={() => setEmailMode(emailMode === 'login' ? 'register' : 'login')}
+              onPress={() => { setEmailMode(emailMode === 'login' ? 'register' : 'login'); setError(null); }}
             >
               <Text style={{ color: Colors.gold, fontSize: 14 }}>
                 {emailMode === 'login' ? 'Еще нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
@@ -315,7 +351,7 @@ export default function AuthScreen() {
   );
 
   if (mode === 'otp') return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <TouchableOpacity style={styles.backRow} onPress={() => setMode('phone')}>
           <Ionicons name="chevron-back" size={20} color={Colors.gray} />
@@ -345,6 +381,7 @@ export default function AuthScreen() {
             />
           ))}
         </View>
+        {!!error && <Text style={styles.errorText}>{error}</Text>}
         <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={verifyOtp} disabled={loading}>
           <Text style={styles.btnText}>{loading ? 'Проверка...' : 'Подтвердить'}</Text>
         </TouchableOpacity>
@@ -358,12 +395,13 @@ export default function AuthScreen() {
   );
 
   if (mode === 'name') return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <View style={styles.logoBox}><SatoryLogoFull size={44} /></View>
         <Text style={styles.heading}>Как вас зовут?</Text>
         <Text style={styles.sub}>Это имя будет отображаться в профиле</Text>
-        <TextInput style={[styles.input, { marginBottom: 16 }]} placeholder="Ваше имя" placeholderTextColor={Colors.gray} value={name} onChangeText={setName} autoCapitalize="words" autoFocus />
+        <TextInput style={[styles.input, { marginBottom: 16 }]} placeholder="Ваше имя" placeholderTextColor={Colors.gray} value={name} onChangeText={(t) => { setName(t); setError(null); }} autoCapitalize="words" autoFocus />
+        {!!error && <Text style={styles.errorText}>{error}</Text>}
         <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={saveName} disabled={loading}>
           <Text style={styles.btnText}>{loading ? 'Сохранение...' : 'Продолжить'}</Text>
         </TouchableOpacity>
@@ -375,8 +413,9 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
+  errorText: { color: Colors.red, fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 14, marginTop: -4 },
   container: { flex: 1, backgroundColor: Colors.bg },
-  inner: { flexGrow: 1, padding: 24, justifyContent: 'center' },
+  inner: { flexGrow: 1, padding: 24, justifyContent: 'center', paddingVertical: 40 },
   logoBox: { alignItems: 'center', marginBottom: 32 },
   tagline: { color: Colors.gray, fontSize: 13, letterSpacing: 3, marginTop: 8, textTransform: 'uppercase' },
   heading: { color: Colors.white, fontSize: 24, fontWeight: '700', marginBottom: 8, textAlign: 'center' },

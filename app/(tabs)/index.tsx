@@ -30,7 +30,7 @@ export default function HomeScreen() {
       const filtered = data.filter((item: any) => {
         const isByWeight = item.unit === 'г' || item.unit === 'гр';
         if (isByWeight) {
-          return (item.stock ?? 0) >= 25;
+          return (item.stock ?? 9999) >= 25;
         }
         return true;
       });

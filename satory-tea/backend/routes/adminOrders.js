@@ -27,8 +27,8 @@ router.get('/', async (req, res) => {
     const user = await db.users.findOne({ _id: o.user_id });
     return {
       ...o,
-      user_name:  user?.name  || '—',
-      user_phone: user?.phone || '—',
+      user_name:  user?.name  || o.user_name || '—',
+      user_phone: user?.phone || o.user_phone || o.phone || '—',
     };
   }));
 
@@ -55,6 +55,24 @@ router.put('/:id/status', async (req, res) => {
   }
 
   res.json({ success: true, status });
+});
+
+// PUT /api/admin/orders/:id/payment — изменить статус оплаты заказа
+router.put('/:id/payment', async (req, res) => {
+  const { payment_status } = req.body;
+  if (payment_status !== 'paid' && payment_status !== 'unpaid') {
+    return res.status(400).json({ error: 'Неверный статус оплаты' });
+  }
+
+  const order = await db.orders.findOne({ _id: req.params.id });
+  if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+
+  await db.orders.update(
+    { _id: req.params.id },
+    { $set: { payment_status, updated_at: new Date().toISOString() } }
+  );
+
+  res.json({ success: true, payment_status });
 });
 
 module.exports = router;

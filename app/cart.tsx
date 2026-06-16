@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Platform, Image, Alert,
+  Platform, Image, Alert, TextInput, KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,12 +18,70 @@ export default function CartScreen() {
   const { token, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [deliveryType, setDeliveryType] = useState<'pickup' | 'delivery'>('pickup');
+  
+  const formatPhone = (raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 0) return '';
+    
+    if (digits.startsWith('7') || digits.startsWith('8')) {
+      const d = digits.slice(1, 11);
+      let r = '+7';
+      if (d.length > 0) r += ' (' + d.slice(0, 3);
+      if (d.length >= 3) {
+        r += ') ' + d.slice(3, 6);
+        if (d.length >= 6) r += '-' + d.slice(6, 8);
+        if (d.length >= 8) r += '-' + d.slice(8, 10);
+      }
+      return r;
+    }
+    return '+' + digits.slice(0, 15);
+  };
+
+  const [phone, setPhone] = useState(user?.phone ? formatPhone(user.phone) : '');
+  const [address, setAddress] = useState('');
+
+  useEffect(() => {
+    if (user?.phone) {
+      setPhone(formatPhone(user.phone));
+    }
+  }, [user?.phone]);
+
+  const onPhoneChange = (text: string) => {
+    const isDeleting = text.length < phone.length;
+    if (isDeleting) {
+      setPhone(text);
+    } else {
+      setPhone(formatPhone(text));
+    }
+  };
+
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)/catalog'); };
+
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
 
   const checkout = async () => {
     if (!token) {
       router.push('/auth');
       return;
+    }
+
+    if (deliveryType === 'delivery') {
+      if (!address.trim()) {
+        showAlert('Ошибка', 'Пожалуйста, укажите адрес доставки');
+        return;
+      }
+      const digits = (phone || '').replace(/\D/g, '');
+      if (!phone || !phone.trim() || digits.length < 10) {
+        showAlert('Ошибка', 'Пожалуйста, укажите корректный контактный телефон');
+        return;
+      }
     }
 
     setLoading(true);
@@ -39,12 +97,15 @@ export default function CartScreen() {
             options: item.options,
           })),
           total,
+          delivery_type: deliveryType,
+          delivery_address: deliveryType === 'delivery' ? address : '',
+          phone: deliveryType === 'delivery' ? phone : undefined,
         }),
       }, token);
       clear();
       setDone(true);
     } catch (e: any) {
-      Alert.alert('Ошибка', e.message || 'Не удалось оформить заказ');
+      showAlert('Ошибка', e.message || 'Не удалось оформить заказ');
     } finally {
       setLoading(false);
     }
@@ -55,7 +116,11 @@ export default function CartScreen() {
       <View style={[styles.container, styles.successWrap]}>
         <Text style={styles.successEmoji}>🍵</Text>
         <Text style={styles.successTitle}>Заказ оформлен</Text>
-        <Text style={styles.successSub}>Он уже появился в системе. Оплата при получении.</Text>
+        <Text style={styles.successSub}>
+          {deliveryType === 'delivery'
+            ? 'Заказ принят на доставку. Оплата при получении.'
+            : 'Он уже появился в системе. Оплата при получении.'}
+        </Text>
         <TouchableOpacity style={styles.orderBtn} onPress={() => router.replace('/orders')}>
           <Text style={styles.orderBtnText}>Открыть мои заказы</Text>
         </TouchableOpacity>
@@ -67,7 +132,10 @@ export default function CartScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={goBack} style={styles.backBtn}>
@@ -129,6 +197,60 @@ export default function CartScreen() {
                 </TouchableOpacity>
               </View>
             )}
+            ListFooterComponent={
+              <View style={styles.deliverySection}>
+                <Text style={styles.sectionTitle}>Способ получения</Text>
+                <View style={styles.deliverySelector}>
+                  <TouchableOpacity
+                    style={[styles.deliveryOption, deliveryType === 'pickup' && styles.deliveryOptionActive]}
+                    onPress={() => setDeliveryType('pickup')}
+                  >
+                    <Ionicons name="storefront-outline" size={18} color={deliveryType === 'pickup' ? Colors.bg : Colors.gray} />
+                    <Text style={[styles.deliveryOptionText, deliveryType === 'pickup' && styles.deliveryOptionTextActive]}>
+                      На месте
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.deliveryOption, deliveryType === 'delivery' && styles.deliveryOptionActive]}
+                    onPress={() => setDeliveryType('delivery')}
+                  >
+                    <Ionicons name="bicycle-outline" size={18} color={deliveryType === 'delivery' ? Colors.bg : Colors.gray} />
+                    <Text style={[styles.deliveryOptionText, deliveryType === 'delivery' && styles.deliveryOptionTextActive]}>
+                      Доставка
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {deliveryType === 'delivery' && (
+                  <View style={styles.deliveryForm}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Контактный телефон</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="+7 (999) 999-99-99"
+                        placeholderTextColor={Colors.gray}
+                        value={phone}
+                        onChangeText={onPhoneChange}
+                        keyboardType="phone-pad"
+                        maxLength={18}
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Адрес доставки</Text>
+                      <TextInput
+                        style={[styles.input, styles.textArea]}
+                        placeholder="Улица, дом, квартира, подъезд, этаж"
+                        placeholderTextColor={Colors.gray}
+                        value={address}
+                        onChangeText={setAddress}
+                        multiline
+                        numberOfLines={3}
+                      />
+                    </View>
+                  </View>
+                )}
+              </View>
+            }
           />
 
           <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
@@ -145,7 +267,7 @@ export default function CartScreen() {
           </View>
         </>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -186,4 +308,23 @@ const styles = StyleSheet.create({
   successSub: { color: Colors.gray, fontSize: 14, textAlign: 'center', marginBottom: 20 },
   secondaryBtn: { paddingVertical: 12 },
   secondaryBtnText: { color: Colors.gray, fontSize: 14 },
+  deliverySection: { marginTop: 12 },
+  sectionTitle: { color: Colors.white, fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  deliverySelector: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  deliveryOption: {
+    flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 8, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, paddingVertical: 12,
+    backgroundColor: Colors.card,
+  },
+  deliveryOptionActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
+  deliveryOptionText: { color: Colors.gray, fontSize: 14, fontWeight: '600' },
+  deliveryOptionTextActive: { color: Colors.bg },
+  deliveryForm: { gap: 12, marginBottom: 8 },
+  inputGroup: { gap: 6 },
+  inputLabel: { color: Colors.grayLight, fontSize: 13, fontWeight: '600' },
+  input: {
+    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, color: Colors.white, fontSize: 15,
+  },
+  textArea: { height: 80, textAlignVertical: 'top' },
 });
