@@ -361,4 +361,75 @@ router.post('/test-push', adminAuth, async (req, res) => {
   res.json({ success: true, sent_to: users.length });
 });
 
+// GET /api/admin/events/:id/registrations — список записей на событие
+router.get('/:id/registrations', async (req, res) => {
+  try {
+    const registrations = await db.registrations.find({ event_id: req.params.id });
+    const userIds = registrations.map(r => r.user_id);
+    const users = await db.users.find({ _id: { $in: userIds } });
+
+    const list = registrations.map(r => {
+      const user = users.find(u => u._id === r.user_id) || {};
+      return {
+        _id: r._id,
+        user_id: r.user_id,
+        name: user.name || '—',
+        phone: user.phone || '—',
+        payment_status: r.payment_status || 'unpaid',
+        created_at: r.created_at || r.confirmed_at || null
+      };
+    });
+
+    res.json(list);
+  } catch (error) {
+    console.error('[admin-events] Error getting registrations:', error);
+    res.status(500).json({ error: 'Ошибка сервера при получении записей' });
+  }
+});
+
+// DELETE /api/admin/events/:eventId/registrations/:registrationId — отменить запись
+router.delete('/:eventId/registrations/:registrationId', async (req, res) => {
+  try {
+    const reg = await db.registrations.findOne({ _id: req.params.registrationId });
+    if (!reg) return res.status(404).json({ error: 'Запись не найдена' });
+
+    await db.registrations.remove({ _id: req.params.registrationId });
+
+    // Уменьшаем seats_taken на событии
+    const event = await db.events.findOne({ _id: req.params.eventId });
+    if (event) {
+      const taken = Math.max(0, (event.seats_taken || 0) - 1);
+      await db.events.update({ _id: req.params.eventId }, { $set: { seats_taken: taken } });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[admin-events] Error deleting registration:', error);
+    res.status(500).json({ error: 'Ошибка сервера при удалении записи' });
+  }
+});
+
+// PUT /api/admin/events/:eventId/registrations/:registrationId/payment — изменить статус оплаты записи
+router.put('/:eventId/registrations/:registrationId/payment', async (req, res) => {
+  const { payment_status } = req.body;
+  if (!payment_status || !['paid', 'unpaid'].includes(payment_status)) {
+    return res.status(400).json({ error: 'Неверный статус оплаты' });
+  }
+
+  try {
+    const reg = await db.registrations.findOne({ _id: req.params.registrationId });
+    if (!reg) return res.status(404).json({ error: 'Запись не найдена' });
+
+    await db.registrations.update(
+      { _id: req.params.registrationId },
+      { $set: { payment_status, updated_at: new Date().toISOString() } }
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[admin-events] Error updating registration payment:', error);
+    res.status(500).json({ error: 'Ошибка сервера при обновлении статуса оплаты' });
+  }
+});
+
 module.exports = router;

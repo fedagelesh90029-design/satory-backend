@@ -329,7 +329,11 @@ function renderEventsTable(events) {
       return `<tr>
         <td><strong>${e.title}</strong>${e.image_url ? `<br><img src="${e.image_url}" class="img-thumb" style="margin-top:4px">` : ''}</td>
         <td>${fmtDate(e.date)}</td><td>${fmtPrice(e.price)}</td>
-        <td>${e.seats_taken||0}/${e.seats_total||'∞'}</td>
+        <td>
+          <a href="#" onclick="openEventParticipants('${e._id}', '${e.title.replace(/'/g, "\\'")}'); return false;" style="text-decoration: underline; color: var(--gold); font-weight: 600;">
+            ${e.seats_taken||0}
+          </a> / ${e.seats_total||'∞'}
+        </td>
         <td>${publishBadge}</td>
         <td>${pushBadge}</td>
         <td><span class="badge ${e.is_active!==false?'badge-green':'badge-red'}">${e.is_active!==false?'Активно':'Скрыто'}</span></td>
@@ -341,6 +345,55 @@ function renderEventsTable(events) {
           <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e._id}')">🗑️</button>
         </td></tr>`;
     }).join('')}</tbody></table>`;
+}
+
+async function openEventParticipants(eventId, eventTitle) {
+  openModal(`<div class="modal" style="width:750px">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h3>👥 Записи на событие: "${eventTitle}"</h3>
+    <div id="participants-wrap" style="margin-top:20px"><p class="empty">Загрузка...</p></div>
+  </div>`);
+
+  const list = await api('GET', `/api/admin/events/${eventId}/registrations`);
+  const wrap = document.getElementById('participants-wrap');
+  if (!wrap) return;
+  if (!list) { wrap.innerHTML = '<p class="empty" style="color:var(--danger)">Ошибка загрузки записей</p>'; return; }
+  if (!list.length) { wrap.innerHTML = '<p class="empty">На это событие пока никто не записался</p>'; return; }
+
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Гость</th><th>Телефон</th><th>Статус оплаты</th><th></th></tr></thead>
+    <tbody>${list.map(r => {
+      return `<tr>
+        <td><strong>${r.name}</strong></td>
+        <td style="font-family:monospace">${r.phone}</td>
+        <td>
+          <select class="status-select" onchange="changeRegistrationPayment('${eventId}', '${r._id}', this.value)" style="background:var(--card); color:var(--text); border:1px solid var(--border); padding:4px 8px; border-radius:6px; font-size:13px; font-weight:600;">
+            <option value="unpaid" ${r.payment_status==='unpaid'?'selected':''} style="color:var(--danger)">❌ Не оплачено</option>
+            <option value="paid" ${r.payment_status==='paid'?'selected':''} style="color:var(--success)">✓ Оплачено</option>
+          </select>
+        </td>
+        <td>
+          <button class="btn btn-danger btn-sm" onclick="cancelRegistration('${eventId}', '${r._id}', '${r.name.replace(/'/g, "\\'")}')" title="Отменить запись">🗑️</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+async function changeRegistrationPayment(eventId, registrationId, status) {
+  const r = await api('PUT', `/api/admin/events/${eventId}/registrations/${registrationId}/payment`, { payment_status: status });
+  if (r) {
+    toast('Статус оплаты обновлен');
+  }
+}
+
+async function cancelRegistration(eventId, registrationId, name) {
+  if (!confirm(`Отменить запись гостя ${name}?`)) return;
+  const r = await api('DELETE', `/api/admin/events/${eventId}/registrations/${registrationId}`);
+  if (r) {
+    toast('Запись отменена');
+    closeModal();
+    renderEvents();
+  }
 }
 
 async function openEventForm(id='') {
