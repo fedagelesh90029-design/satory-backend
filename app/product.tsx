@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
   Dimensions, ActivityIndicator, FlatList, Modal, Alert,
+  TouchableWithoutFeedback, TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,8 @@ export default function ProductScreen() {
   const [activeImg, setActiveImg] = useState(0);
   const [display, setDisplay]     = useState<any>({});
   const [amount, setAmount]       = useState(1);
+  const [qtyModal, setQtyModal]   = useState(false);
+  const [weight, setWeight]       = useState('25');
 
   const [teas, setTeas]           = useState<any[]>([]);
   const [teaModal, setTeaModal]   = useState(false);
@@ -134,31 +137,44 @@ export default function ProductScreen() {
       setTeaModal(true);
       return;
     }
-    
+
+    const isByWeight = product.unit === 'г' || product.unit === 'гр';
+    if (isByWeight) {
+      setWeight('25');
+      setQtyModal(true);
+    } else {
+      const options = selectedTea ? {
+        tea_id: selectedTea._id,
+        tea_name: selectedTea.name,
+        tea_price: selectedTea.price,
+      } : undefined;
+      add(product, options);
+      goBack();
+    }
+  };
+
+  const confirmWeight = () => {
+    let val = parseInt(weight) || 25;
+    if (val < 25) {
+      Alert.alert('Внимание', 'Минимальный вес для заказа — 25 г');
+      setWeight('25');
+      return;
+    }
+    const maxStock = product.stock ?? 9999;
+    if (val > maxStock) {
+      Alert.alert('Внимание', `Недостаточно чая в наличии. Доступно только ${maxStock} г.`);
+      setWeight(String(maxStock));
+      return;
+    }
+
     const options = selectedTea ? {
       tea_id: selectedTea._id,
       tea_name: selectedTea.name,
       tea_price: selectedTea.price,
     } : undefined;
 
-    const isByWeight = product.unit === 'г' || product.unit === 'гр';
-    if (isByWeight) {
-      const grams = amount || 25;
-      if (grams < 25) {
-        Alert.alert('Внимание', 'Минимальный вес для заказа — 25 г');
-        setAmount(25);
-        return;
-      }
-      const maxStock = product.stock ?? 9999;
-      if (grams > maxStock) {
-        Alert.alert('Внимание', `Недостаточно чая в наличии. Доступно только ${maxStock} г.`);
-        setAmount(maxStock);
-        return;
-      }
-      add(product, options, grams);
-    } else {
-      add(product, options);
-    }
+    add(product, options, val);
+    setQtyModal(false);
     goBack();
   };
 
@@ -279,34 +295,7 @@ export default function ProductScreen() {
           </View>
           ) : null}
 
-          {/* Выбор количества для чая */}
-          {isWeighted && (() => {
-            const maxStock = product.stock ?? 9999;
-            const chips = [25, 50, 100, 250].filter(v => v <= maxStock);
-            if (maxStock >= 25 && !chips.includes(maxStock) && maxStock < 500) {
-              chips.push(maxStock);
-              chips.sort((a, b) => a - b);
-            }
-            return (
-              <View style={styles.amountBox}>
-                <Text style={styles.amountTitle}>Количество (грамм)</Text>
-                <View style={styles.amountRow}>
-                  {chips.map(v => (
-                    <TouchableOpacity key={v} 
-                      style={[styles.amountChip, amount === v && styles.amountChipActive]}
-                      onPress={() => setAmount(v)}
-                    >
-                      <Text style={[styles.amountText, amount === v && styles.amountTextActive]}>
-                        {v === maxStock && maxStock !== 25 && maxStock !== 50 && maxStock !== 100 && maxStock !== 250
-                          ? `${v}г (остаток)`
-                          : `${v}г`}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            );
-          })()}
+          {/* Выбор количества для чая убран отсюда и перенесён в модалку В корзину */}
 
           {/* Советы по завариванию */}
           {display.show_brewing_tips !== false && meta.brewing_tips ? (
@@ -392,6 +381,51 @@ export default function ProductScreen() {
             />
           </View>
         </View>
+      </Modal>
+
+      {/* Модалка выбора веса */}
+      <Modal visible={qtyModal} transparent animationType="fade" onRequestClose={() => setQtyModal(false)}>
+        <TouchableOpacity 
+          style={styles.modalOverlayCenter} 
+          activeOpacity={1} 
+          onPress={() => setQtyModal(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Сколько грамм?</Text>
+              <Text style={styles.modalSub}>{product.name}</Text>
+              <View style={styles.inputRow}>
+                <TouchableOpacity onPress={() => setWeight(Math.max(25, (parseInt(weight)||0)-5).toString())} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>-5</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setWeight(Math.max(25, (parseInt(weight)||0)-1).toString())} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>-1</Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="number-pad"
+                  autoFocus
+                />
+                <TouchableOpacity onPress={() => setWeight(Math.min(product.stock ?? 9999, (parseInt(weight)||0)+1).toString())} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>+1</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setWeight(Math.min(product.stock ?? 9999, (parseInt(weight)||0)+5).toString())} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>+5</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalBtns}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setQtyModal(false)}>
+                  <Text style={styles.cancelText}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.confirmBtn} onPress={confirmWeight}>
+                  <Text style={styles.confirmText}>В корзину</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
 
       {/* Lightbox */}
@@ -513,4 +547,17 @@ const styles = StyleSheet.create({
   groupChipActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
   groupText: { color: Colors.gray, fontSize: 13, fontWeight: '600' },
   groupTextActive: { color: Colors.bg },
+  modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { backgroundColor: Colors.card, borderRadius: 24, padding: 24, width: '100%', maxWidth: 300, borderColor: Colors.border, borderWidth: 1 },
+  modalTitle: { color: Colors.white, fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+  modalSub: { color: Colors.gray, fontSize: 13, textAlign: 'center', marginBottom: 20 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 24 },
+  stepBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  stepBtnText: { color: Colors.gold, fontSize: 13, fontWeight: '700' },
+  input: { color: Colors.gold, fontSize: 32, fontWeight: '800', textAlign: 'center', width: 80 },
+  modalBtns: { flexDirection: 'row', gap: 12 },
+  cancelBtn: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  cancelText: { color: Colors.gray, fontWeight: '600' },
+  confirmBtn: { flex: 2, backgroundColor: Colors.gold, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  confirmText: { color: Colors.bg, fontWeight: '700' },
 });

@@ -40,13 +40,13 @@ export default function HelpScreen() {
 
         <Text style={styles.section}>СВЯЗАТЬСЯ С НАМИ</Text>
         <View style={styles.card}>
-          <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL('https://vk.com/satori_tea')}>
+          <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL('https://vk.com/satori_tea_sochi')}>
             <Ionicons name="logo-vk" size={20} color={Colors.gold} />
             <Text style={styles.contactText}>ВКонтакте</Text>
             <Ionicons name="open-outline" size={14} color={Colors.gray} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.contactRow, { borderTopWidth: 1, borderTopColor: Colors.border }]}
-            onPress={() => Linking.openURL('tel:+79990000000')}>
+            onPress={() => Linking.openURL('tel:+79890887444')}>
             <Ionicons name="call-outline" size={20} color={Colors.gold} />
             <Text style={styles.contactText}>Позвонить</Text>
             <Ionicons name="open-outline" size={14} color={Colors.gray} />
