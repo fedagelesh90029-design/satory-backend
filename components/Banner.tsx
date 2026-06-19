@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   image: { width: '100%', height: '100%', position: 'absolute' },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.38)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     padding: 20,
     justifyContent: 'flex-end',
   },

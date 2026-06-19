@@ -104,13 +104,13 @@ export default function HomeScreen() {
         <ImageBackground
           source={require('../../assets/banner.jpg')}
           style={styles.banner}
-          imageStyle={{ borderRadius: 20, opacity: 0.7 }}
+          imageStyle={{ borderRadius: 20, opacity: 0.85 }}
         >
           <View style={styles.bannerOverlay}>
             <View style={styles.bannerBadge}>
               <Text style={styles.bannerBadgeText}>САТОРИ</Text>
             </View>
-            <Text style={styles.bannerTitle}>Меньше слов,{'\n'}больше чая...</Text>
+            <Text style={[styles.bannerTitle, { lineHeight: undefined }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>Меньше слов — больше чая.</Text>
             <TouchableOpacity style={styles.bannerBtn} onPress={() => router.push('/(tabs)/catalog')}>
               <Text style={styles.bannerBtnText}>Смотреть  ›</Text>
             </TouchableOpacity>
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   },
   bannerOverlay: {
     flex: 1, padding: 24, justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.18)',
   },
   bannerBadge: {
     backgroundColor: Colors.gold, alignSelf: 'flex-start',
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   statCard: {
     flex: 1,
-    backgroundColor: Colors.card,
+    backgroundColor: '#282828',
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 6,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   verticalStatCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: '#282828',
     borderRadius: 14,
     padding: 12,
     gap: 12,
