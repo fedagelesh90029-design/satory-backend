@@ -261,6 +261,7 @@ const styles = StyleSheet.create({
   chatBubbleName: { color: Colors.gold, fontSize: 12, fontWeight: '700', marginBottom: 3 },
   chatBubbleText: { color: Colors.white, fontSize: 12, lineHeight: 17 },
   banner: {
+    width: '100%',
     borderRadius: 20,
     aspectRatio: 1.5, marginBottom: 16,
     overflow: 'hidden',

@@ -43,6 +43,7 @@ export function Banner() {
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
     marginHorizontal: 0,
     borderRadius: 20,
     overflow: 'hidden',
