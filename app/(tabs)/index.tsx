@@ -265,6 +265,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1.5, marginBottom: 16,
     overflow: 'hidden',
     backgroundColor: Colors.card,
+    marginHorizontal: -8,
   },
   bannerOverlay: {
     flex: 1, padding: 24, justifyContent: 'flex-end',

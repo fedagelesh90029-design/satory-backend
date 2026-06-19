@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { Colors } from '../constants/theme';
 
 const satoryImage = require('../assets/Satory.png');
@@ -26,20 +26,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   name: {
     color: Colors.white,
+    fontWeight: 'bold',
+    letterSpacing: 4,
     textTransform: 'uppercase',
-    ...Platform.select({
-      ios: {
-        fontWeight: '300',
-        letterSpacing: 4,
-      },
-      android: {
-        fontFamily: 'sans-serif-light',
-        letterSpacing: 4,
-      },
-      default: {
-        fontWeight: '300',
-        letterSpacing: 4,
-      },
-    }),
   },
 });
