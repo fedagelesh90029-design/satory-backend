@@ -107,7 +107,7 @@ export default function HomeScreen() {
           imageStyle={{ borderRadius: 20, opacity: 0.85 }}
         >
           <View style={styles.bannerOverlay}>
-            <Text style={[styles.bannerTitle, { lineHeight: undefined }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>Меньше слов — больше чая.</Text>
+            <Text style={[styles.bannerTitle, { lineHeight: undefined }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>Меньше слов — больше чая</Text>
             <TouchableOpacity style={styles.bannerBtn} onPress={() => router.push('/(tabs)/catalog')}>
               <Text style={styles.bannerBtnText}>Смотреть  ›</Text>
             </TouchableOpacity>
