@@ -50,7 +50,6 @@ export default function HomeScreen() {
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20), flexDirection: 'column', alignItems: 'stretch' }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <View>
-            <Text style={styles.welcome}>ДОБРО ПОЖАЛОВАТЬ В</Text>
             <SatoryLogoFull size={36} />
           </View>
           <TouchableOpacity style={styles.leafBtn} onPress={() => router.push('/(tabs)/catalog')}>
@@ -62,8 +61,9 @@ export default function HomeScreen() {
             <Ionicons name="location-outline" size={13} color={Colors.gold} />
             <Text style={styles.address}>ул. Кирова, 26 · Адлер</Text>
           </View>
-          <TouchableOpacity onPress={() => Linking.openURL('tel:+79890887444')}>
-            <Text style={[styles.address, { textDecorationLine: 'underline' }]}>+7 (989) 088-74-44</Text>
+          <TouchableOpacity onPress={() => Linking.openURL('tel:+79890887444')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="call-outline" size={13} color={Colors.gold} />
+            <Text style={styles.address}>+7 (989) 088-74-44</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -107,9 +107,6 @@ export default function HomeScreen() {
           imageStyle={{ borderRadius: 20, opacity: 0.85 }}
         >
           <View style={styles.bannerOverlay}>
-            <View style={styles.bannerBadge}>
-              <Text style={styles.bannerBadgeText}>САТОРИ</Text>
-            </View>
             <Text style={[styles.bannerTitle, { lineHeight: undefined }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>Меньше слов — больше чая.</Text>
             <TouchableOpacity style={styles.bannerBtn} onPress={() => router.push('/(tabs)/catalog')}>
               <Text style={styles.bannerBtnText}>Смотреть  ›</Text>

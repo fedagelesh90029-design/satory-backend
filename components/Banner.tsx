@@ -11,7 +11,7 @@ export function Banner() {
   const [banner, setBanner] = useState<any>(null);
 
   useEffect(() => {
-    apiFetch('/gallery/banner').then(setBanner).catch(() => {});
+    apiFetch('/gallery/banner').then(setBanner).catch(() => { });
   }, []);
 
   // Если галерея пуста — ничего не рендерим (главный экран покажет статичный баннер)

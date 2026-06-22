@@ -17,17 +17,17 @@ export function SatoryLogoFull({ size = 40 }: { size?: number }) {
   return (
     <View style={styles.row}>
       <SatoryLogoIcon size={size} />
-      <Text style={[styles.name, { fontSize: size * 0.55 }]}>САТОРИ</Text>
+      <Text style={[styles.name, { fontSize: size * 0.75 }]}>САТОРИ</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: {
     color: Colors.white,
     fontWeight: 'bold',
-    letterSpacing: 4,
+    letterSpacing: 2,
     textTransform: 'uppercase',
   },
 });
