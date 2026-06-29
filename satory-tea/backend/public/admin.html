@@ -1896,7 +1896,7 @@ async function onQRSuccess(text) {
     
     const resp = await fetch('/api/bonus/qr/verify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
       body: JSON.stringify({ qr_data: text }),
     });
     
